@@ -5,13 +5,20 @@ import "react-circular-progressbar/dist/styles.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { handleDownloadPDF } from "../utils/HandleDownloadPdf";
 
+interface MatchedSource {
+	url: string;
+	title: string;
+	snippet: string;
+}
+
 interface ResultData {
 	submittedDocument: string;
-	matchedSources: string[];
+	matchedSources: MatchedSource[];
 	scanProperties: {
 		sourcesFound: number;
 		words: number;
 		characters: number;
+		citationStatus: "Proper" | "Partial" | "False" | "Poor" | "None";
 	};
 	plagiarism: {
 		percentage: number;
@@ -86,7 +93,7 @@ const Home = () => {
 		if (percentage <= 40) return "#f97316"; // orange
 		return "#dc2626"; // red
 	};
-  
+
 	const startTime = performance.now(); // before scan
 	const endTime = performance.now(); // after scan
 
@@ -111,14 +118,48 @@ const Home = () => {
 				submittedDocument:
 					text || (files.length > 0 ? files.map((f) => f.name).join(", ") : ""),
 				matchedSources: [
-					"https://example.com/source1",
-					"https://example.com/source2",
-					"https://example.com/source3",
+					{
+						url: "https://example.com/source1",
+						title: "Understanding Machine Learning",
+						snippet:
+							"Machine learning is a method of data analysis that automates analytical model building...",
+					},
+					{
+						url: "https://example.com/source2",
+						title: "AI in Education Sector",
+						snippet:
+							"This article discusses the impact of artificial intelligence on modern educational systems...",
+					},
+					{
+						url: "https://example.com/source2",
+						title: "AI in Education Sector",
+						snippet:
+							"This article discusses the impact of artificial intelligence on modern educational systems...",
+					},
+					{
+						url: "https://example.com/source2",
+						title: "AI in Education Sector",
+						snippet:
+							"This article discusses the impact of artificial intelligence on modern educational systems...",
+					},
+					{
+						url: "https://example.com/source2",
+						title: "AI in Education Sector",
+						snippet:
+							"This article discusses the impact of artificial intelligence on modern educational systems...",
+					},
+					{
+						url: "https://example.com/source3",
+						title: "History of Natural Language Processing",
+						snippet:
+							"NLP has evolved significantly over the decades, enabling machines to understand human language...",
+					},
 				],
 				scanProperties: {
 					sourcesFound: 3,
 					words: wordCount,
 					characters: text.length,
+					 citationStatus: "Partial",
 				},
 				plagiarism: {
 					percentage: 22,
@@ -298,7 +339,7 @@ const Home = () => {
 											<button
 												type="button"
 												onClick={() => removeFile(i)}
-												className="text-red-600 hover:text-red-800 font-bold ml-3"
+												className="text-red-700 hover:text-red-800 font-bold ml-3"
 												aria-label={`Remove file ${file.name}`}
 												disabled={loading}
 											>
@@ -357,36 +398,94 @@ const Home = () => {
 
 								<div className="flex flex-col md:flex-row gap-4">
 									{/* Submitted Text */}
-									<div className="flex-1">
-										<h3 className="font-semibold mb-2">Submitted Content</h3>
-										<p className="whitespace-pre-wrap border border-gray-300 rounded p-4 h-110 overflow-auto bg-gray-50">
+									<div className="bg-white rounded-lg shadow-md p-6 flex-1">
+										<h3 className="text-lg font-semibold mb-4 text-gray-900">
+											Submitted Content
+										</h3>
+
+										<div className="border border-gray-200 rounded-lg p-4 bg-gray-50 h-110 overflow-auto whitespace-pre-wrap text-sm text-gray-800">
 											{resultData.submittedDocument}
-										</p>
-										<p className="text-sm mt-2 text-gray-600">
-											Words: {resultData.scanProperties.words} | Characters:{" "}
-											{resultData.scanProperties.characters}
-										</p>
+										</div>
+
+										<div className="mt-4 border-t pt-3 text-sm text-gray-600 space-y-2">
+											<p>
+												<span className="font-medium text-gray-800">
+													Words:
+												</span>{" "}
+												{resultData.scanProperties.words} &nbsp;|&nbsp;
+												<span className="font-medium text-gray-800">
+													Characters:
+												</span>{" "}
+												{resultData.scanProperties.characters}
+											</p>
+
+											<p>
+												<span className="font-medium text-gray-800">
+													Citation Status:
+												</span>{" "}
+												<span
+													className={
+														resultData.scanProperties.citationStatus ===
+														"Proper"
+															? "text-green-600"
+															: resultData.scanProperties.citationStatus ===
+															  "Partial"
+															? "text-yellow-600"
+															: resultData.scanProperties.citationStatus ===
+															  "False"
+															? "text-red-600"
+															: resultData.scanProperties.citationStatus ===
+															  "Poor"
+															? "text-orange-500"
+															: "text-gray-500"
+													}
+												>
+													{resultData.scanProperties.citationStatus}
+												</span>
+											</p>
+
+											<p className="text-xs italic text-gray-500">
+												{
+													{
+														Proper: "Properly credited with correct format.",
+														Partial: "Citation present but lacks detail.",
+														False: "Cited source doesn’t match content.",
+														Poor: "Citation exists but unclear or weak.",
+														None: "No citation found for matched content.",
+													}[resultData.scanProperties.citationStatus]
+												}
+											</p>
+										</div>
 									</div>
 
 									{/* Matched Sources */}
 									<div className="flex-1">
-										<h3 className="font-semibold mb-2">
+										<h3 className="font-semibold text-lg mb-4">
 											Matched Sources ({resultData.scanProperties.sourcesFound})
 										</h3>
-										<ul className="list-disc list-inside max-h-110 overflow-auto border border-gray-300 rounded p-4 bg-gray-50">
+
+										<div className="grid gap-4 max-h-[440px] overflow-y-auto pr-2">
 											{resultData.matchedSources.map((source, i) => (
-												<li key={i}>
-													<a
-														href={source}
-														target="_blank"
-														rel="noreferrer"
-														className="text-blue-600 hover:underline"
-													>
-														{source}
-													</a>
-												</li>
+												<div
+													key={i}
+													className="border border-gray-300 rounded-lg p-4 bg-white shadow hover:shadow-md transition-shadow duration-200"
+												>
+													<h4 className="font-semibold text-blue-600 truncate mb-1">
+														<a
+															href={source.url}
+															target="_blank"
+															rel="noreferrer"
+															className="hover:underline"
+														>
+															{source.title || source.url}
+														</a>
+													</h4>
+													<p className="text-sm text-gray-700 line-clamp-3">
+														{source.snippet}
+													</p>
+												</div>
 											))}
-										</ul>
+										</div>
 									</div>
 
 									{/* Pie Chart */}
