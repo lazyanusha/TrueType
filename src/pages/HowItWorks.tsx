@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import confetti from "canvas-confetti";
+import Snowing from "../components/Snowing";
 
 const steps = [
 	{
@@ -46,49 +46,17 @@ const stepVariants = {
 };
 
 const HowItWorks = () => {
-	const fireworksInterval = useRef<number | null>(null);
-
-	useEffect(() => {
-		// Function to shoot fireworks randomly on the screen
-		function shootFireworks() {
-			const x = Math.random();
-			const y = Math.random() * 0.5; // Upper half screen
-
-			confetti({
-				particleCount: 30,
-				startVelocity: 30,
-				spread: 360,
-				origin: { x, y },
-				colors: [
-					"#ff0055",
-					"#ff5500",
-					"#ffaa00",
-					"#55ff00",
-					"#00ffaa",
-					"#0055ff",
-					"#aa00ff",
-				],
-			});
-		}
-
-		fireworksInterval.current = setInterval(shootFireworks, 2000);
-
-		return () => {
-			if (fireworksInterval.current !== null) {
-				clearInterval(fireworksInterval.current);
-			}
-		};
-	}, []);
-
 	return (
 		<div
 			style={{
 				position: "relative",
 				minHeight: "100vh",
 				overflow: "hidden",
-				backgroundColor: "#f0f9ff", // Light blue background
+				backgroundColor: "#f0f9ff",
 			}}
 		>
+			<Snowing />
+
 			{/* Main Content */}
 			<div
 				className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8"
@@ -156,7 +124,7 @@ const HowItWorks = () => {
 };
 
 const Step: React.FC<{ step: StepType }> = ({ step }) => {
-	const ref = React.useRef(null);
+	const ref = useRef(null);
 	const isInView = useInView(ref, { once: false, margin: "-100px" });
 
 	return (

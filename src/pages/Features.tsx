@@ -1,48 +1,35 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import confetti from "canvas-confetti";
+import Snowing from "../components/Snowing";
 
 const Features = () => {
-	const [isAnimationComplete, setIsAnimationComplete] = useState(false);
+	const [, setIsAnimationComplete] = useState(false);
 
-	// Page background
-	const pageBackgroundStyle = {
+	const pageBackgroundStyle: React.CSSProperties = {
 		backgroundColor: "#f0f9ff",
 		paddingTop: "2rem",
 		paddingBottom: "2rem",
 	};
 
-	const contentWrapperStyle = {
+	const contentWrapperStyle: React.CSSProperties = {
 		position: "relative",
 		zIndex: 1,
 	};
 
-	useEffect(() => {
-		if (isAnimationComplete) {
-			// Launch fireworks after initial animation
-			confetti({
-				particleCount: 150, // Increased particle count for denser effect
-				spread: 180,
-				origin: { y: 0.6 },
-				colors: ["#ff0000", "#00ff00", "#0000ff"], // Custom colors for variety
-				scalar: 1.2, // Adjust size of particles
-			});
-		}
-	}, [isAnimationComplete]);
-
 	return (
 		<div style={pageBackgroundStyle}>
+			<Snowing />
+
 			<motion.div
 				initial={{ opacity: 0, y: 30 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 1 }}
-				onAnimationComplete={() => setIsAnimationComplete(true)} // Set state after animation
+				onAnimationComplete={() => setIsAnimationComplete(true)}
 				className="max-w-7xl mx-auto relative z-10"
 			>
-				{/* Main content */}
 				<div
 					style={contentWrapperStyle}
-					className="max-w-7xl mx-auto py-32 px-4 sm:px-6 lg:px-8" 
+					className="max-w-7xl mx-auto py-32 px-4 sm:px-6 lg:px-8"
 				>
 					<div className="text-center mb-12">
 						<h1 className="text-3xl font-bold text-gray-900 mb-2">Features</h1>

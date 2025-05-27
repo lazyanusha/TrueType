@@ -1,37 +1,99 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 
-/**
- * Downloads the current result section as PDF.
- * @param {string} elementId - The ID of the HTML element to capture.
- * @param {object} metadata - Metadata like title, timestamp, duration.
- */
-export const handleDownloadPDF = async (elementId: string, metadata: {
-  title: string;
-  timestamp: string;
-  duration: string;
-}) => {
-  const input = document.getElementById(elementId);
+export async function handleDownloadPDF(
+  sectionId: string,
+  options: {
+    title?: string;
+    timestamp?: string;
+    duration?: string;
+  } = {}
+): Promise<void> {
+  console.log("PDF download started");
 
-  if (!input) return;
+  const element = document.getElementById(sectionId);
+  if (!element) {
+    console.error(`Element with id '${sectionId}' not found.`);
+    alert("Sorry, could not find the content to export.");
+    return;
+  }
 
-  const canvas = await html2canvas(input, { scale: 2 });
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF("p", "mm", "a4");
+  // Clone the element
+  const clonedElement = element.cloneNode(true) as HTMLElement;
 
-  const imgProps = pdf.getImageProperties(imgData);
-  const pdfWidth = pdf.internal.pageSize.getWidth();
-  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+  // --- REPLACE MATCHED SOURCES WITH TITLE LIST ONLY ---
+  const matchedSourcesContainer = clonedElement.querySelector(".matched-sources-container");
+  if (matchedSourcesContainer) {
 
-  // Add report metadata
-  pdf.setFontSize(12);
-  pdf.text(`📄 ${metadata.title}`, 10, 10);
-  pdf.text(`🕒 Time Taken: ${metadata.duration}`, 10, 16);
-  pdf.text(`📅 Generated: ${metadata.timestamp}`, 10, 22);
+    const titleElements = matchedSourcesContainer.querySelectorAll(".source-card h4 a");
 
-  // Add image of result section
-  pdf.addImage(imgData, "PNG", 10, 30, pdfWidth - 20, pdfHeight);
+    const titles = Array.from(titleElements).map(
+      (el) => el.textContent?.trim() || el.getAttribute("href") || "Untitled Source"
+    );
 
-  pdf.save(`Plagiarism_Report_${new Date().toISOString()}.pdf`);
+    // Replace matched sources content with a simple ul list of titles
+    matchedSourcesContainer.innerHTML = `
+      <h3 class="font-semibold text-lg mb-4">
+        Matched Sources (${titles.length})
+      </h3>
+      <ul style="padding-left: 20px; list-style-type: disc; color: black;">
+        ${titles.map((title) => `<li>${title}</li>`).join("")}
+      </ul>
+    `;
+  }
 
-};
+  // Append footer with metadata if provided
+  if (options.timestamp || options.duration) {
+    const footer = document.createElement("div");
+    footer.style.marginTop = "20px";
+    footer.style.fontSize = "12px";
+    footer.style.color = "#555";
+    footer.innerHTML = `
+      <p><strong>Scanned on:</strong> ${options.timestamp || "N/A"}</p>
+      <p><strong>Time Taken to Scan:</strong> ${options.duration || "N/A"}</p>
+    `;
+    clonedElement.appendChild(footer);
+  }
+
+  clonedElement.style.position = "fixed";
+  clonedElement.style.left = "-9999px";
+  clonedElement.style.top = "0";
+  clonedElement.style.zIndex = "-1";
+  document.body.appendChild(clonedElement);
+
+  try {
+    const canvas = await html2canvas(clonedElement, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff", // fallback for transparent Tailwind backgrounds
+    });
+
+    // Cleanup cloned element after rendering
+    document.body.removeChild(clonedElement);
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF({
+      unit: "pt",
+      format: "a4",
+    });
+
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+    const filename = `${options.title || "Report"} - ${new Date().toLocaleString()}.pdf`;
+    pdf.save(filename);
+
+    alert("✅ PDF generated and downloaded successfully!");
+  } catch (err) {
+    console.error("❌ PDF generation error:", err);
+    alert("An error occurred while generating the PDF. Please try again.");
+
+    if (document.body.contains(clonedElement)) {
+      document.body.removeChild(clonedElement);
+    }
+  }
+}
