@@ -11,7 +11,24 @@ interface FileUploadSectionProps {
   handleCheckPlagiarism: () => void;
   clearText: () => void;
   removeFile: (index: number) => void;
+  extractedTexts?: Record<string, string>;
 }
+
+const supportedExtensions = [".txt", ".pdf", ".docx"]; // Add supported file extensions here
+
+const isSupportedFile = (fileName: string) => {
+  const lower = fileName.toLowerCase();
+  return supportedExtensions.some(ext => lower.endsWith(ext));
+};
+
+const countSentences = (text: string) => {
+  // Simple sentence splitter by punctuation marks followed by space or EOL
+  // Filters out empty sentences
+  return text
+    .split(/[.!?]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 5).length; // Consider sentences with more than 5 chars "meaningful"
+};
 
 const FileUploadSection: React.FC<FileUploadSectionProps> = ({
   loading,
@@ -32,6 +49,12 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
     }
   };
 
+  // Filter supported files only
+  const supportedFiles = files.filter(file => isSupportedFile(file.name));
+
+  // Check if manual text has at least 10 meaningful sentences
+  const hasEnoughSentences = countSentences(text) >= 10;
+
   return (
     <section className="bg-white rounded-xl p-8 shadow-xl mb-12 text-gray-900 relative">
       {/* File Upload Box */}
@@ -44,7 +67,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         <p className="text-lg font-semibold">
           Drag and drop your files here or click to upload
         </p>
-        <p className="text-sm text-gray-600 mt-1">Supports multiple files</p>
+        <p className="text-sm text-gray-600 mt-1">Supports multiple files (.txt, .pdf, .docx)</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -52,6 +75,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
           multiple
           onChange={handleFilesSelected}
           disabled={loading}
+          accept={supportedExtensions.join(",")}
         />
       </div>
 
@@ -77,6 +101,13 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
             &times;
           </button>
         )}
+
+        {/* Sentence count warning */}
+        {!hasEnoughSentences && text.trim() !== "" && (
+          <p className="mt-1 text-sm text-red-600">
+            Please enter at least 10 meaningful sentences for plagiarism checking.
+          </p>
+        )}
       </div>
 
       <div className="mt-4 flex justify-between items-center">
@@ -90,8 +121,13 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 
         <button
           onClick={handleCheckPlagiarism}
-          disabled={loading}
+          disabled={loading || (!hasEnoughSentences && text.trim() !== "" && files.length === 0)}
           className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            !hasEnoughSentences && text.trim() !== "" && files.length === 0
+              ? "Add at least 10 sentences or upload files to check"
+              : undefined
+          }
         >
           {loading && (
             <motion.div
@@ -109,11 +145,11 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       </div>
 
       {/* File List with per-file clear buttons */}
-      {files.length > 0 && (
+      {supportedFiles.length > 0 && (
         <div className="mt-4 text-sm text-gray-700 space-y-1">
           <p>Uploaded files:</p>
           <ul>
-            {files.map((file, i) => (
+            {supportedFiles.map((file, i) => (
               <li
                 key={i}
                 className="flex items-center justify-between border border-gray-300 rounded px-3 py-1"
