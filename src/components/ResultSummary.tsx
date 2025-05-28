@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import type { MatchedPair, ResultData } from "../types/resultTypes";
@@ -17,7 +17,6 @@ interface Props {
   citationInfo: Record<string, { label: string; description: string }>;
   getPathColor: (percentage: number) => string;
   getCitationStyles: (status: keyof typeof citationInfo) => string;
-  // Removed wordCount and charCount from Props
 }
 
 const ResultSummary: React.FC<Props> = ({
@@ -38,34 +37,28 @@ const ResultSummary: React.FC<Props> = ({
     submittedDocument = "",
   } = resultData;
 
-  // Helper: Calculate word and character count from text (frontend only)
-  const getWordAndCharacterCount = (text: string) => {
-    const words = text.trim().split(/\s+/).filter(Boolean).length;
-    const characters = text.length; // including spaces
-    return { words, characters };
-  };
+  // Utility functions for word and character count
+  const countWords = (text: string): number =>
+    text.trim() ? text.trim().split(/\s+/).length : 0;
 
-  // Always compute word and character counts from submittedDocument
-  const { words: finalWordCount, characters: finalCharCount } =
-    getWordAndCharacterCount(submittedDocument);
+  const countCharacters = (text: string): number => text.length;
 
-  // Use frontend counts as fallback for scanProperties
-  const scanProperties = {
-    ...resultData.scanProperties,
-    words: resultData.scanProperties?.words ?? finalWordCount,
-    characters: resultData.scanProperties?.characters ?? finalCharCount,
-    citationStatus: resultData.scanProperties?.citationStatus ?? "None",
-    sourcesFound:
-      resultData.scanProperties?.sourcesFound ??
-      Array.from(new Set(matched_pairs.map((pair) => pair.source_file))).length,
-  };
+  const wordCount = countWords(submittedDocument);
+  const characterCount = countCharacters(submittedDocument);
 
+  // Determine if no plagiarism found
   const noPlagiarismFound =
     total_exact_score === 0 && total_partial_score === 0;
+
+  // Compute plagiarism percentage if needed (used if animatedPercentage is not provided)
   const computedPercentage = 100 - total_exact_score - total_partial_score;
 
-  // Highlight submitted content based on matched snippets
-  const highlightSubmittedContent = React.useMemo(() => {
+  /**
+   * Highlight matched snippets in the submitted document.
+   * Marks all unique matched sentences with a <mark> tag.
+   */
+  const highlightSubmittedContent = useMemo(() => {
+    // Get unique exact matched sentences
     const uniqueSnippets = Array.from(
       new Set(matched_pairs.map((pair) => pair.doc1_sentence))
     );
@@ -73,6 +66,7 @@ const ResultSummary: React.FC<Props> = ({
     return (text: string) => {
       let markedText = text;
       uniqueSnippets.forEach((snippet) => {
+        // Escape special regex characters in the snippet
         const escaped = snippet.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const regex = new RegExp(escaped, "g");
         markedText = markedText.replace(
@@ -84,13 +78,11 @@ const ResultSummary: React.FC<Props> = ({
     };
   }, [matched_pairs]);
 
-  // Group matched pairs by source file
-  const groupedBySource = React.useMemo(() => {
+  // Group matched pairs by their source file for display
+  const groupedBySource = useMemo(() => {
     const groups: Record<string, MatchedPair[]> = {};
     matched_pairs.forEach((pair) => {
-      if (!groups[pair.source_file]) {
-        groups[pair.source_file] = [];
-      }
+      if (!groups[pair.source_file]) groups[pair.source_file] = [];
       groups[pair.source_file].push(pair);
     });
     return groups;
@@ -98,12 +90,13 @@ const ResultSummary: React.FC<Props> = ({
 
   return (
     <>
+      {/* Highlight style for marked text */}
       <style>{`
         mark.highlight {
           background-color: rgba(255, 99, 71, 0.3);
           border-radius: 3px;
           padding: 0 2px;
-          transition: background-color 0.2s ease;   
+          transition: background-color 0.2s ease;
         }
         mark.highlight:hover {
           background-color: rgba(255, 99, 71, 0.5);
@@ -118,7 +111,7 @@ const ResultSummary: React.FC<Props> = ({
         exit={{ opacity: 0, y: 30 }}
         className="bg-white rounded-xl p-8 shadow-xl text-gray-900 mb-12 min-h-[600px]"
       >
-        {/* Header */}
+        {/* Header: Title and Download Button */}
         <div className="relative mb-6 w-full">
           <p className="absolute top-0 right-0 text-sm text-gray-600 whitespace-nowrap">
             Scanned on: {new Date().toLocaleString()}
@@ -135,6 +128,7 @@ const ResultSummary: React.FC<Props> = ({
                   duration: `${elapsedTime} seconds`,
                 })
               }
+              aria-label="Download report PDF"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -154,8 +148,9 @@ const ResultSummary: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Scores section */}
+        {/* Scores Overview */}
         <div className="flex flex-row lg:flex-row mb-8 gap-12">
+          {/* Circular Progress showing overall plagiarism % */}
           <div className="flex-1 max-w-xs mx-auto lg:mx-0">
             <h3 className="font-semibold mb-8 ml-4 text-center lg:text-left">
               Plagiarism Score
@@ -181,6 +176,7 @@ const ResultSummary: React.FC<Props> = ({
             </div>
           </div>
 
+          {/* Breakdown of exact, partial and unique matches */}
           <div className="space-y-2 mt-4 w-full max-w-xs">
             <div className="bg-red-50 p-3 rounded-lg">
               <p className="text-sm text-red-700">Exact Match</p>
@@ -188,13 +184,13 @@ const ResultSummary: React.FC<Props> = ({
                 {total_exact_score}%
               </p>
             </div>
-            <div className="bg-yellow-50 p-3 px-3 rounded-lg">
+            <div className="bg-yellow-50 p-3 rounded-lg">
               <p className="text-sm text-yellow-700">Partial Match</p>
               <p className="text-2xl font-bold text-yellow-600">
                 {total_partial_score}%
               </p>
             </div>
-            <div className="bg-green-50 p-3 px-4 rounded-lg">
+            <div className="bg-green-50 p-3 rounded-lg">
               <p className="text-sm text-green-700">Unique</p>
               <p className="text-2xl font-bold text-green-600">
                 {unique_score}%
@@ -202,7 +198,7 @@ const ResultSummary: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Citation */}
+          {/* Citation info if available */}
           {resultData?.scanProperties?.citationStatus && (
             <div
               className={`mt-6 border-l-4 p-4 w-128 h-28 mb-10 rounded shadow-sm ${getCitationStyles(
@@ -214,7 +210,7 @@ const ResultSummary: React.FC<Props> = ({
                   className="w-5 h-5 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth={2}
                   viewBox="0 0 24 24"
                 >
                   <path
@@ -237,9 +233,9 @@ const ResultSummary: React.FC<Props> = ({
           )}
         </div>
 
-        {/* Main content */}
+        {/* Main Content Columns */}
         <div className="flex flex-col lg:flex-row gap-4 mb-12 mt-12">
-          {/* Submitted Content */}
+          {/* Submitted Document with highlights */}
           <div className="flex-1">
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow">
               <div className="bg-gray-50 px-4 py-3 border-b">
@@ -253,22 +249,15 @@ const ResultSummary: React.FC<Props> = ({
                   __html: highlightSubmittedContent(submittedDocument),
                 }}
               />
-              <div className="bg-gray-50 px-4 py-2 border-t text-sm text-gray-600">
-                <div className="flex justify-between">
-                  <span>
-                    <span className="font-medium">Words:</span>{" "}
-                    {scanProperties.words.toLocaleString()}
-                  </span>
-                  <span>
-                    <span className="font-medium">Characters:</span>{" "}
-                    {scanProperties.characters.toLocaleString()}
-                  </span>
-                </div>
+              <div className="bg-gray-50 px-4 py-2 border-t flex flex-row justify-between text-sm text-gray-600">
+                <strong>Words: {wordCount}</strong>
+
+                <strong>Characters: {characterCount}</strong>
               </div>
             </div>
           </div>
 
-          {/* Matched Sources */}
+          {/* Matched sources grouped by file */}
           <div className="flex-1">
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow">
               <div className="bg-gray-50 px-4 py-3 border-b">
@@ -323,12 +312,15 @@ const ResultSummary: React.FC<Props> = ({
                 )}
               </div>
             </div>
+            <p className="text-m ml-4 text-gray-600 mt-4">
+              <strong>Time Taken to Scan:</strong> {elapsedTime} seconds
+            </p>
           </div>
         </div>
 
-        {/* Detailed Matches */}
+        {/* Detailed Matches Section */}
         <div className="mt-6">
-          <div className="bg-white rounded-lg mb-6 border  border-gray-200 overflow-hidden shadow">
+          <div className="bg-white rounded-lg mb-6 border border-gray-200 overflow-hidden shadow">
             <div className="bg-gray-50 px-4 py-3 border-b">
               <h3 className="font-semibold text-gray-800">
                 Detailed Matches ({matched_pairs.length})
@@ -360,18 +352,18 @@ const ResultSummary: React.FC<Props> = ({
                       </div>
                       <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                         <span>
-                          <span className="font-medium">Source:</span>{" "}
-                          {pair.source_file}
+                          <strong>Source:</strong> {pair.source_file}
                         </span>
                         <span>
-                          <span className="font-medium">Similarity:</span>{" "}
+                          <strong>Similarity:</strong>{" "}
                           {(pair.similarity * 100).toFixed(1)}%
                         </span>
                       </div>
                     </div>
                   ))}
                   <p className="text-green-500 text-center py-4">
-                   Avoid copying large blocks of text directly; focus on summarizing
+                    Avoid copying large blocks of text directly; focus on
+                    summarizing.
                   </p>
                 </div>
               ) : (
@@ -383,6 +375,7 @@ const ResultSummary: React.FC<Props> = ({
           </div>
         </div>
 
+        {/* Message if no plagiarism detected */}
         {noPlagiarismFound && (
           <div className="mt-6 p-4 bg-green-100 rounded-lg text-green-800 font-medium text-center">
             No plagiarism detected. Your document is unique!

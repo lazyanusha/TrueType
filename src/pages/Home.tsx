@@ -62,7 +62,7 @@ const Home = () => {
       console.log("API result:", result);
       const end = Date.now();
       setElapsedTime(Math.round((end - start) / 1000));
-      
+
       if (result) {
         setResultData(result);
         setShowResults(true);
@@ -82,8 +82,8 @@ const Home = () => {
   useEffect(() => {
     if (showResults && resultData) {
       let progress = 0;
-      const target = 
-        (resultData.total_exact_score ?? 0) + 
+      const target =
+        (resultData.total_exact_score ?? 0) +
         (resultData.total_partial_score ?? 0);
       const duration = 2000;
       const increment = target / (duration / 20);
@@ -129,7 +129,6 @@ const Home = () => {
     paddingTop: "3rem",
     paddingBottom: "3rem",
   };
-  
 
   return (
     <div style={pageBackgroundStyle}>
@@ -170,7 +169,6 @@ const Home = () => {
                 citationInfo={citationInfo}
                 getPathColor={getPathColor}
                 getCitationStyles={getCitationStyles}
-               
               />
             )}
           </AnimatePresence>
