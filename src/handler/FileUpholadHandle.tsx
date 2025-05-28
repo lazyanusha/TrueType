@@ -34,20 +34,22 @@ const FileUploadHandle = ({ onCheck, onShowResults }: Props) => {
     setLoading(true);
 
     const newFiles = Array.from(e.target.files);
-    setFiles(prev => [...prev, ...newFiles]);
-
+    const successfulFiles: File[] = [];
     const newFileTexts: Record<string, string> = {};
+
     for (const file of newFiles) {
       try {
-        newFileTexts[file.name] = await extractTextFromFile(file);
+        const text = await extractTextFromFile(file);
+        newFileTexts[file.name] = text;
+        successfulFiles.push(file); // Only add file if text extraction succeeds
       } catch (err) {
         console.error("Failed to extract text:", err);
-        alert(`Error extracting text from ${file.name}`);
-        newFileTexts[file.name] = "";
+        alert(`${file.name} was skipped due to format or readability issues.`);
       }
     }
 
-    setFileTexts(prev => ({ ...prev, ...newFileTexts }));
+    setFiles((prev) => [...prev, ...successfulFiles]); // Only add successful files
+    setFileTexts((prev) => ({ ...prev, ...newFileTexts }));
     setLoading(false);
   };
 
@@ -58,10 +60,10 @@ const FileUploadHandle = ({ onCheck, onShowResults }: Props) => {
 
   // Remove a file
   const removeFile = (index: number) => {
-    setFiles(prev => {
+    setFiles((prev) => {
       const updated = [...prev];
       const removedFile = updated.splice(index, 1)[0];
-      setFileTexts(prevTexts => {
+      setFileTexts((prevTexts) => {
         const updatedTexts = { ...prevTexts };
         delete updatedTexts[removedFile.name];
         return updatedTexts;

@@ -10,7 +10,7 @@ const Snowflake = ({ style }: { style: React.CSSProperties }) => (
 			height: 8,
 			background: "white",
 			borderRadius: "50%",
-			opacity: 0.8,
+			opacity: 1,
 			pointerEvents: "none",
 			filter: "drop-shadow(0 0 4px white)",
 			...style,

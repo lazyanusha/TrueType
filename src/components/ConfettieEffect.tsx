@@ -1,0 +1,25 @@
+import React from "react";
+import Confetti from "react-confetti";
+import { useWindowSize } from "react-use";
+
+interface ConfettiEffectProps {
+  active: boolean;
+  pieces?: number;
+}
+
+const ConfettiEffect: React.FC<ConfettiEffectProps> = ({ active, pieces = 250 }) => {
+  const { width, height } = useWindowSize();
+
+  if (!active) return null;
+
+  return (
+    <Confetti
+      width={width}
+      height={height}
+      numberOfPieces={pieces}
+      recycle={true} // keep confetti going while active
+    />
+  );
+};
+
+export default ConfettiEffect;

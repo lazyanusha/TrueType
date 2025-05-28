@@ -1,5 +1,6 @@
 import React, { type ChangeEvent, useRef } from "react";
 import { motion } from "framer-motion";
+import ConfettiEffect from "./ConfettieEffect";
 
 interface FileUploadSectionProps {
   loading: boolean;
@@ -14,20 +15,18 @@ interface FileUploadSectionProps {
   extractedTexts?: Record<string, string>;
 }
 
-const supportedExtensions = [".txt", ".pdf", ".docx"]; // Add supported file extensions here
+const supportedExtensions = [".txt", ".pdf", ".docx"];
 
 const isSupportedFile = (fileName: string) => {
   const lower = fileName.toLowerCase();
-  return supportedExtensions.some(ext => lower.endsWith(ext));
+  return supportedExtensions.some((ext) => lower.endsWith(ext));
 };
 
 const countSentences = (text: string) => {
-  // Simple sentence splitter by punctuation marks followed by space or EOL
-  // Filters out empty sentences
   return text
     .split(/[.!?]+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 5).length; // Consider sentences with more than 5 chars "meaningful"
+    .map((s) => s.trim())
+    .filter((s) => s.length > 5).length;
 };
 
 const FileUploadSection: React.FC<FileUploadSectionProps> = ({
@@ -45,19 +44,35 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 
   const handleFileUpload = () => {
     if (!loading) {
+      if (text.trim()) {
+        alert("You can only use either text input or file upload at a time.");
+        return;
+      }
       fileInputRef.current?.click();
     }
   };
 
-  // Filter supported files only
-  const supportedFiles = files.filter(file => isSupportedFile(file.name));
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (text.trim()) {
+      alert("Text input disabled. Please clear text to upload files.");
+      return;
+    }
+    handleFilesSelected(e);
+  };
 
-  // Check if manual text has at least 10 meaningful sentences
+  const onTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    if (files.length > 0) {
+      alert("File upload disabled. Please remove files to enter text.");
+      return;
+    }
+    handleTextChange(e);
+  };
+
+  const supportedFiles = files.filter((file) => isSupportedFile(file.name));
   const hasEnoughSentences = countSentences(text) >= 10;
 
   return (
     <section className="bg-white rounded-xl p-8 shadow-xl mb-12 text-gray-900 relative">
-      {/* File Upload Box */}
       <div
         className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer hover:border-blue-500 ${
           loading ? "opacity-50 cursor-not-allowed" : "border-gray-300"
@@ -67,29 +82,29 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
         <p className="text-lg font-semibold">
           Drag and drop your files here or click to upload
         </p>
-        <p className="text-sm text-gray-600 mt-1">Supports multiple files (.txt, .pdf, .docx)</p>
+        <p className="text-sm text-gray-600 mt-1">
+          Supports multiple files (.txt, .pdf, .docx)
+        </p>
         <input
           ref={fileInputRef}
           type="file"
           className="hidden"
           multiple
-          onChange={handleFilesSelected}
-          disabled={loading}
+          onChange={onFileChange}
+          disabled={loading || !!text.trim()}
           accept={supportedExtensions.join(",")}
         />
       </div>
 
-      {/* Textarea */}
       <div className="relative mt-6">
         <textarea
           className="w-full h-48 border border-gray-300 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Paste your text here to check for plagiarism..."
           value={text}
-          onChange={handleTextChange}
-          disabled={loading}
+          onChange={onTextChange}
+          disabled={loading || files.length > 0}
         />
 
-        {/* Clear Button for Text */}
         {text && (
           <button
             onClick={clearText}
@@ -102,10 +117,10 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
           </button>
         )}
 
-        {/* Sentence count warning */}
         {!hasEnoughSentences && text.trim() !== "" && (
           <p className="mt-1 text-sm text-red-600">
-            Please enter at least 10 meaningful sentences for plagiarism checking.
+            Please enter at least 10 meaningful sentences for plagiarism
+            checking.
           </p>
         )}
       </div>
@@ -121,7 +136,10 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 
         <button
           onClick={handleCheckPlagiarism}
-          disabled={loading || (!hasEnoughSentences && text.trim() !== "" && files.length === 0)}
+          disabled={
+            loading ||
+            (!hasEnoughSentences && text.trim() !== "" && files.length === 0)
+          }
           className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
           title={
             !hasEnoughSentences && text.trim() !== "" && files.length === 0
@@ -129,22 +147,21 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
               : undefined
           }
         >
-          {loading && (
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{
-                repeat: Infinity,
-                duration: 2,
-                ease: "linear",
-              }}
-              className="w-5 h-5 border-4 border-white border-t-transparent rounded-full mr-3"
-            />
+          {loading ? (
+            <>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                className="w-5 h-5 border-4 border-white border-t-transparent rounded-full mr-3"
+              />
+              <ConfettiEffect active={loading} pieces={100} />
+            </>
+          ) : (
+            "Check for Plagiarism"
           )}
-          Check for Plagiarism
         </button>
       </div>
 
-      {/* File List with per-file clear buttons */}
       {supportedFiles.length > 0 && (
         <div className="mt-4 text-sm text-gray-700 space-y-1">
           <p>Uploaded files:</p>
