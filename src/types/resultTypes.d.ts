@@ -19,6 +19,8 @@ export interface ResultData {
 }
 
 interface MatchedPair {
+  citation_status: string;
+  citation_text: any;
   doc1_sentence: string;
   doc2_sentence: string;
   similarity: number;

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import type { MatchedPair, ResultData } from "../types/resultTypes";
 import type { citationInfo } from "../constants/citationInfo";
+import { normalizeCitationStatus } from "../utils/CitationUtils";
 
 interface Props {
   resultData: ResultData;
@@ -45,6 +46,10 @@ const ResultSummary: React.FC<Props> = ({
 
   const wordCount = countWords(submittedDocument);
   const characterCount = countCharacters(submittedDocument);
+
+  const normalizedStatus = normalizeCitationStatus(
+    resultData?.scanProperties?.citationStatus
+  );
 
   // Determine if no plagiarism found
   const noPlagiarismFound =
@@ -201,13 +206,13 @@ const ResultSummary: React.FC<Props> = ({
           {/* Citation info if available */}
           {resultData?.scanProperties?.citationStatus && (
             <div
-              className={`mt-6 border-l-4 p-4 w-128 h-28 mb-10 rounded shadow-sm ${getCitationStyles(
+              className={`mt-6 border-l-4 p-4 w-128 h-64 rounded shadow-sm ${getCitationStyles(
                 resultData.scanProperties.citationStatus
               )}`}
             >
               <div className="flex items-center space-x-2">
                 <svg
-                  className="w-5 h-5 flex-shrink-0"
+                  className="w-5 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth={2}
@@ -220,15 +225,28 @@ const ResultSummary: React.FC<Props> = ({
                   />
                 </svg>
                 <h4 className="text-lg font-semibold">
-                  {citationInfo[resultData.scanProperties.citationStatus].label}
+                  {citationInfo[normalizedStatus].label}
                 </h4>
               </div>
               <p className="mt-1 text-sm">
-                {
-                  citationInfo[resultData.scanProperties.citationStatus]
-                    .description
-                }
+                {citationInfo[normalizedStatus].description}
               </p>
+
+              {/* Scrollable citation matches */}
+              {resultData.matched_pairs?.length > 0 && (
+                <div
+                  className="mt-3 overflow-y-auto text-xs text-gray-700"
+                  style={{ maxHeight: "10rem" }}
+                >
+                  {resultData.matched_pairs.map((pair, i) => (
+                    <div key={i} className="mb-1">
+                      <strong>Status:</strong>{" "}
+                      {pair.citation_status || "uncited"}{" "}
+                      {pair.citation_text ? `- "${pair.citation_text}"` : ""}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

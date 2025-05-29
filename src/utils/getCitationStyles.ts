@@ -1,7 +1,9 @@
-import { citationInfo } from "../constants/citationInfo";
+import { normalizeCitationStatus } from "./CitationUtils";
 
-export const getCitationStyles = (status: keyof typeof citationInfo) => {
-  switch (status) {
+export const getCitationStyles = (status: string) => {
+  const normalized = normalizeCitationStatus(status);
+
+  switch (normalized) {
     case "Proper":
       return "bg-green-50 border-green-500 text-green-700";
     case "Partial":
