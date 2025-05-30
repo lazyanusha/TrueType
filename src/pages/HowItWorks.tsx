@@ -62,7 +62,7 @@ const HowItWorks = () => {
 				className="max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8"
 				style={{ position: "relative", zIndex: 1 }}
 			>
-				<div className="text-center mb-12">
+				<div className="text-center mb-14 mt-10">
 					<h1 className="text-4xl font-bold text-gray-900 mb-4">
 						How It Works
 					</h1>

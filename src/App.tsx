@@ -5,26 +5,29 @@ import HowItWorks from "./pages/HowItWorks";
 import Features from "./pages/Features";
 import Layout from "./components/Layout";
 import { useEffect } from "react";
+import { RegistrationForm } from "./pages/Register";
+import { LoginPage } from "./pages/Login";
 
 function App() {
- useEffect(() => {
+  useEffect(() => {
     // When component mounts (page reloads), scroll smoothly to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-	return (
-    
-		<Router>
-			<Routes>
-				<Route path="/" element={<Layout />}>
-					<Route index element={<Home />} />
-					<Route path="features" element={<Features />} />
-					<Route path="how-it-works" element={<HowItWorks />} />
-					<Route path="contact" element={<Contact />} />
-				</Route>
-			</Routes>
-		</Router>
-	);
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegistrationForm />} />
+          <Route path="features" element={<Features />} />
+          <Route path="how-it-works" element={<HowItWorks />} />
+          <Route path="contact" element={<Contact />} />
+        </Route>
+      </Routes>
+    </Router>
+  );
 }
 
 export default App;

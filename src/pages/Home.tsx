@@ -138,12 +138,12 @@ const Home = () => {
         transition={{ duration: 1 }}
         className="max-w-7xl mx-auto relative z-10"
       >
-        <div className="px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+        <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
           <ConfettiEffect
             active={loading && resultData?.unique_score === 100}
           />
 
-          <header className="mb-12 text-center">
+          <header className="mb-12 mt-10 text-center">
             <h1 className="text-4xl font-extrabold mb-4 text-blue-900">
               TrueType – Originality You Can Trust
             </h1>

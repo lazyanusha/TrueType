@@ -11,29 +11,18 @@ const Layout = () => {
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="flex justify-between items-center h-20">
-            <Link
-              to="/"
-              className="flex items-center space-x-3 text-blue-600 hover:text-blue-500 transition"
-            >
-              <svg
-                className="w-8 h-8"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            {/* Left - Logo */}
+            <div className="flex items-center text-blue-600 hover:text-blue-500 transition">
+              <Link to="/" className="flex items-center">
+                <img
+                  src="logo.png"
+                  alt="TrueType Logo"
+                  className="h-16 w-auto"
                 />
-              </svg>
-              <span className="text-3xl font-extrabold tracking-wide text-gray-900">
-                TrueType
-              </span>
-            </Link>
+              </Link>
+            </div>
 
-            {/* Desktop menu */}
+            {/* Center nav links */}
             <div className="hidden md:flex space-x-12 text-lg font-medium">
               {[
                 { to: "/", label: "Home" },
@@ -50,6 +39,22 @@ const Layout = () => {
                   <span className="absolute left-0 -bottom-1 w-full h-0.5 bg-blue-600 scale-x-0 origin-left transition-transform duration-300 hover:scale-x-100"></span>
                 </Link>
               ))}
+            </div>
+
+            {/* Right - Auth links */}
+            <div className="hidden md:flex space-x-8 text-lg font-medium">
+              <Link
+                to="/login"
+                className="text-gray-700 hover:text-blue-600 transition-colors duration-300"
+              >
+                Log In
+              </Link>
+              <Link
+                to="/register"
+                className="text-gray-700 hover:text-blue-600 transition-colors duration-300"
+              >
+                Register
+              </Link>
             </div>
 
             {/* Mobile hamburger */}
@@ -93,6 +98,8 @@ const Layout = () => {
                 { to: "/features", label: "Features" },
                 { to: "/how-it-works", label: "How It Works" },
                 { to: "/contact", label: "Contact" },
+                { to: "/login", label: "Log In" },
+                { to: "/register", label: "Register" },
               ].map(({ to, label }) => (
                 <Link
                   key={to}
@@ -113,6 +120,7 @@ const Layout = () => {
         <Outlet />
       </main>
 
+      {/* Footer */}
       <Footer />
     </div>
   );
