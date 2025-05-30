@@ -8,8 +8,8 @@ const Layout = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#f0f9ff] text-gray-800">
       {/* Navbar */}
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+      <nav className="bg-white shadow-sm border-b py-2 border-gray-200">
+        <div className="max-w-7xl mx-auto sm:pr-4 lg:pr-4">
           <div className="flex justify-between items-center h-20">
             {/* Left - Logo */}
             <div className="flex items-center text-blue-600 hover:text-blue-500 transition">
@@ -17,7 +17,7 @@ const Layout = () => {
                 <img
                   src="logo.png"
                   alt="TrueType Logo"
-                  className="h-16 w-auto"
+                  className="h-19 w-auto"
                 />
               </Link>
             </div>

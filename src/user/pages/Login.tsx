@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Snowing from "../components/Snowing";
+import { Eye, EyeOff } from "lucide-react";
 
 export const LoginPage = () => {
   const [formData, setFormData] = useState({
@@ -20,9 +22,11 @@ export const LoginPage = () => {
     console.log("Login submitted:", formData);
     // Add your login logic here
   };
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="min-h-[calc(90vh-100px)] bg-[#f0f9ff] flex align-center items-center justify-center">
+      <Snowing />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -31,7 +35,7 @@ export const LoginPage = () => {
       >
         <div className="text-center mb-8">
           <img
-            src="logo.png" 
+            src="logo.png"
             alt="TrueType Logo"
             className="mx-auto h-24 w-auto" // Adjust height and width as needed
           />
@@ -68,16 +72,26 @@ export const LoginPage = () => {
             >
               Password
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-            />
+
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 pr-10"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
             <div className="text-right mt-1">
               <a href="#" className="text-sm text-blue-600 hover:underline">
                 Forgot Password?
@@ -96,7 +110,10 @@ export const LoginPage = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             New here?{" "}
-            <a href="#" className="text-blue-600 hover:underline font-medium">
+            <a
+              href="register"
+              className="text-blue-600 hover:underline font-medium"
+            >
               Sign Up
             </a>
           </p>

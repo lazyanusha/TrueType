@@ -31,7 +31,7 @@ const Features = () => {
 					style={contentWrapperStyle}
 					className="max-w-7xl mx-auto py-32 px-4 sm:px-6 lg:px-8"
 				>
-					<div className="text-center mb-12 mt-24">
+					<div className="text-center mb-12 mt-20">
 						<h1 className="text-3xl font-bold text-gray-900 mb-2">Features</h1>
 						<p className="text-gray-600">
 							Explore what makes{" "}
