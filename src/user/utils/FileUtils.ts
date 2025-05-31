@@ -83,7 +83,7 @@ export async function extractTextFromFile(file: File): Promise<string> {
 	if (ext === "txt") {
 		return await extractTxt(file);
 	} else if (ext === "pdf") {
-		return await extractPdf(file, true); // OCR enabled
+		return await extractPdf(file, true); 
 	} else if (ext === "docx") {
 		return await extractDocx(file);
 	} else {
