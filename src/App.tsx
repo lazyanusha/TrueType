@@ -8,13 +8,14 @@ import { useEffect } from "react";
 import { LoginPage } from "./user/pages/Login";
 import RegistrationForm from "./user/pages/Register";
 import PaymentPage from "./user/pages/Payment";
-import Resources from "./admin/components/Resources";
+import Resources from "./admin/pages/Resources";
 import Payments from "./admin/pages/Payments";
 import Users from "./admin/pages/Users";
 import Dashboard from "./admin/pages/Dashboard";
 import Sidebar from "./admin/components/Sidebar";
 import AdminSettings from "./admin/pages/Settings";
 import TestRecords from "./admin/pages/TestResult";
+import UserSettingsPage from "./user/pages/UserSetting";
 
 function App() {
   useEffect(() => {
@@ -33,6 +34,7 @@ function App() {
           <Route path="how-it-works" element={<HowItWorks />} />
           <Route path="contact" element={<Contact />} />
           <Route path="payment" element={<PaymentPage />} />
+          <Route path="setting" element={<UserSettingsPage/>} />
         </Route>
 
         {/* Admin routes */}

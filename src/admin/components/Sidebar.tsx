@@ -57,7 +57,7 @@ export default function Sidebar() {
         {/* Topbar */}
         <div className="flex justify-between items-center py-8 px-14 border-b bg-white">
           <h1 className="text-xl font-bold text-[#3C5773]">
-            Your Admin Workspace
+           Administration Console
           </h1>
 
           <div className="relative">
@@ -105,6 +105,7 @@ export default function Sidebar() {
           <Outlet />
         </div>
       </main>
+      
     </>
   );
 }

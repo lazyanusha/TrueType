@@ -13,3 +13,7 @@
   animation-name: fadeIn;
   animation-fill-mode: forwards;
 }
+
+h1{
+  color:#3C5773;
+}
