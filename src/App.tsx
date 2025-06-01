@@ -5,7 +5,6 @@ import HowItWorks from "./user/pages/HowItWorks";
 import Features from "./user/pages/Features";
 import Layout from "./user/components/Layout";
 import { useEffect } from "react";
-import { LoginPage } from "./user/pages/Login";
 import RegistrationForm from "./user/pages/Register";
 import PaymentPage from "./user/pages/Payment";
 import Resources from "./admin/pages/Resources";
@@ -16,6 +15,7 @@ import Sidebar from "./admin/components/Sidebar";
 import AdminSettings from "./admin/pages/Settings";
 import TestRecords from "./admin/pages/TestResult";
 import UserSettingsPage from "./user/pages/UserSetting";
+import { LoginPage } from "./user/pages/Login";
 
 function App() {
   useEffect(() => {
@@ -34,7 +34,7 @@ function App() {
           <Route path="how-it-works" element={<HowItWorks />} />
           <Route path="contact" element={<Contact />} />
           <Route path="payment" element={<PaymentPage />} />
-          <Route path="setting" element={<UserSettingsPage/>} />
+          <Route path="usersetting" element={<UserSettingsPage/>} />
         </Route>
 
         {/* Admin routes */}

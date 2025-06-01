@@ -27,9 +27,11 @@ export default function RegistrationForm() {
     agreed: false,
   });
 
-  const [errors, setErrors] = useState<{
-    [K in keyof RegistrationData]?: string;
-  }>({});
+  const [errors, setErrors] = useState<
+    {
+      [K in keyof RegistrationData]?: string;
+    } & { form?: string }
+  >({});
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -47,26 +49,62 @@ export default function RegistrationForm() {
         setFormData((prev) => ({ ...prev, phone: value }));
       }
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]:
-          type === "checkbox" ? (target as HTMLInputElement).checked : value,
-      }));
+      if (type === "checkbox" && target instanceof HTMLInputElement) {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: target.checked,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          [name]: value,
+        }));
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrors({}); // reset errors on new submit
     const validationErrors = validateRegistration(formData);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
-      setSuccessMessage(
-        "Registration successful! Redirecting to subscription details..."
-      );
-      setTimeout(() => {
-        navigate("/payment", { state: { user: formData } });
-      }, 2000); 
+      try {
+        const response = await fetch("http://localhost:8000/api/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            password: formData.password,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          setErrors({ form: errorData.detail || "Registration failed" });
+          return;
+        }
+
+        const data = await response.json();
+
+        // Success
+        setSuccessMessage(
+          "Registration successful! Redirecting to subscription details..."
+        );
+
+        setTimeout(() => {
+          navigate("/payment", {
+            state: { user: { user_id: data.id, fullName: data.fullName } },
+          });
+        }, 2000);
+      } catch (error) {
+        setErrors({ form: "Network error, please try again." });
+      }
     }
   };
 
@@ -77,7 +115,7 @@ export default function RegistrationForm() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
-        className="min-h-screen flex shadow-xl rounded-xl  items-center justify-center bg-[#f0f9ff]"
+        className="min-h-screen flex shadow-xl rounded-xl items-center justify-center bg-[#f0f9ff]"
       >
         <div className="max-w-7xl w-full mx-auto relative z-10">
           {successMessage && (
@@ -110,6 +148,12 @@ export default function RegistrationForm() {
               <h2 className="text-2xl font-semibold text-gray-800 mb-8">
                 Create an Account
               </h2>
+
+              {/* Form-level error */}
+              {errors.form && (
+                <p className="text-red-600 text-center mb-4">{errors.form}</p>
+              )}
+
               <form className="space-y-4" onSubmit={handleSubmit}>
                 {["fullName", "email", "phone"].map((field) => (
                   <div key={field}>
@@ -132,9 +176,17 @@ export default function RegistrationForm() {
                       value={formData[field as "fullName" | "email" | "phone"]}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-blue-300 rounded-md"
+                      autoComplete={
+                        field === "email"
+                          ? "email"
+                          : field === "phone"
+                          ? "tel"
+                          : "name"
+                      }
+                      required
                     />
                     {errors[field as keyof RegistrationData] && (
-                      <p className="text-red-600 text-sm">
+                      <p className="text-red-600 text-sm mt-1">
                         {errors[field as keyof RegistrationData]}
                       </p>
                     )}
@@ -154,17 +206,24 @@ export default function RegistrationForm() {
                       value={formData.password}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-blue-300 rounded-md pr-10"
+                      autoComplete="new-password"
+                      required
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-2.5 text-gray-600"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                   {errors.password && (
-                    <p className="text-red-600 text-sm">{errors.password}</p>
+                    <p className="text-red-600 text-sm mt-1">
+                      {errors.password}
+                    </p>
                   )}
                 </div>
 
@@ -184,12 +243,19 @@ export default function RegistrationForm() {
                       value={formData.confirmPassword}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-blue-300 rounded-md pr-10"
+                      autoComplete="new-password"
+                      required
                     />
                     <button
                       type="button"
                       className="absolute right-3 top-2.5 text-gray-600"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      aria-label={
+                        showConfirmPassword
+                          ? "Hide confirm password"
+                          : "Show confirm password"
                       }
                     >
                       {showConfirmPassword ? (
@@ -200,7 +266,7 @@ export default function RegistrationForm() {
                     </button>
                   </div>
                   {errors.confirmPassword && (
-                    <p className="text-red-600 text-sm">
+                    <p className="text-red-600 text-sm mt-1">
                       {errors.confirmPassword}
                     </p>
                   )}
@@ -215,9 +281,10 @@ export default function RegistrationForm() {
                     onChange={handleChange}
                     className="mr-2"
                     id="agreed"
+                    required
                   />
                   <label htmlFor="agreed" className="text-gray-600 text-sm">
-                    I agree to the{" "}
+                    I have read and agree to the{" "}
                     <button
                       type="button"
                       className="text-blue-600 underline"
@@ -256,7 +323,7 @@ export default function RegistrationForm() {
                 <button
                   type="submit"
                   className="w-full bg-[#3C5773] text-white py-3 rounded-md hover:bg-[#4f5d84]"
-                  disabled={!!successMessage} // Disable button while showing message
+                  disabled={!!successMessage} // Disable button while showing success message
                 >
                   Register
                 </button>
@@ -296,9 +363,12 @@ export default function RegistrationForm() {
                         <li>Citations Check</li>
                         <li>Reports Export</li>
                       </ul>
-                      <button 
-                      onClick={() => navigate("/payment", { state: { user: formData } })}
-                      className="self-start mt-10 py-2 border border-[#3C5773] text-[#3C5773]py-1 px-3 rounded hover:bg-[#eee]">
+                      <button
+                        onClick={() =>
+                          navigate("/payment", { state: { user: formData } })
+                        }
+                        className="self-start mt-10 py-2 border border-[#3C5773] text-[#3C5773]py-1 px-3 rounded hover:bg-[#eee]"
+                      >
                         Subscribe
                       </button>
                     </div>

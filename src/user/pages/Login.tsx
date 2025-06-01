@@ -1,28 +1,88 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../auth/auth_context";
 import Snowing from "../components/Snowing";
+import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 
 export const LoginPage = () => {
+  const { setUser } = useContext(AuthContext);
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
+    rememberMe: false,
   });
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:8000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          remember_me: formData.rememberMe,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.detail || "Login failed");
+        return;
+      }
+
+      const data = await res.json();
+
+      // Conditionally store token based on Remember Me
+      if (formData.rememberMe) {
+        localStorage.setItem("access_token", data.access_token);
+      } else {
+        sessionStorage.setItem("access_token", data.access_token);
+      }
+
+      // Fetch user info using token
+      const meRes = await fetch("http://localhost:8000/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${data.access_token}`,
+        },
+      });
+
+      if (!meRes.ok) {
+        setError("Failed to fetch user info");
+        return;
+      }
+
+      const userData = await meRes.json();
+      console.log("User Data:", userData);
+
+      setUser(userData); // set user in context
+
+      // Role-based redirect
+      if (userData.roles?.toLowerCase() === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      setError("Unexpected error occurred");
+      console.error(err);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Login submitted:", formData);
-    // Add your login logic here
-  };
-  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="min-h-[calc(90vh-100px)] bg-[#f0f9ff] flex align-center items-center justify-center">
@@ -37,7 +97,7 @@ export const LoginPage = () => {
           <img
             src="logo.png"
             alt="TrueType Logo"
-            className="mx-auto h-24 w-auto" // Adjust height and width as needed
+            className="mx-auto h-24 w-auto"
           />
           <p className="text-lg text-gray-600">Welcome to TrueType</p>
           <p className="text-sm text-gray-500">
@@ -92,12 +152,27 @@ export const LoginPage = () => {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <div className="text-right mt-1">
+
+            <div className="flex items-center justify-between mt-2">
+              <label className="flex items-center text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  name="rememberMe"
+                  checked={formData.rememberMe}
+                  onChange={handleChange}
+                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                Remember Me
+              </label>
               <a href="#" className="text-sm text-blue-600 hover:underline">
                 Forgot Password?
               </a>
             </div>
           </div>
+
+          {error && (
+            <p className="text-red-600 text-sm font-medium mt-2">{error}</p>
+          )}
 
           <button
             type="submit"
