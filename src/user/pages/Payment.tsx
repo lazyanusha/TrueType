@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import {  useNavigate } from "react-router-dom";
 import Snowing from "../components/Snowing";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 interface Plan {
   name: string;
   price: string;
+}
+
+interface User {
+  id: number;
+  full_name: string;
+  subscription_status?: string;
 }
 
 interface PaymentCreatePayload {
@@ -16,64 +22,65 @@ interface PaymentCreatePayload {
 }
 
 export default function PaymentPage() {
-  const location = useLocation();
   const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [user, setUser] = useState<{ user_id?: number; fullName?: string }>({});
-
-  // Load user info from location.state or localStorage on mount
+  // Fetch current user info on mount by calling /api/auth/me
   useEffect(() => {
-    if (location.state && location.state.user_id && location.state.fullName) {
-      setUser({
-        user_id: location.state.user_id,
-        fullName: location.state.fullName,
-      });
-      // Save to localStorage for persistence
-      localStorage.setItem("user_id", String(location.state.user_id));
-      localStorage.setItem("fullName", location.state.fullName);
-    } else {
-      // Try to load from localStorage
-      const storedUserId = localStorage.getItem("user_id");
-      const storedFullName = localStorage.getItem("fullName");
-      if (storedUserId && storedFullName) {
-        setUser({
-          user_id: Number(storedUserId),
-          fullName: storedFullName,
-        });
-      } else {
-        // No user info found, optionally redirect to register
-        // navigate("/register");
-      }
-    }
-  }, [location.state]);
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
 
-  // Example plans (can be passed from props or location.state)
+    if (!token) {
+      // No token, redirect or show login prompt
+      setLoading(false);
+      setUser(null);
+      return;
+    }
+
+    fetch("http://localhost:8000/api/auth/me", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      mode: "cors",
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch user");
+        }
+        const data = await res.json();
+        setUser(data);
+      })
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
   const subscriptionPlans: Plan[] = [
-    { name: "Weekly", price: "200" }, // price as number string for backend
+    { name: "Weekly", price: "200" },
     { name: "Monthly", price: "700" },
     { name: "Yearly", price: "1450" },
   ];
 
-  // Send payment POST request
   const handleBuy = async (planName: string) => {
-    if (!user.user_id || !user.fullName) {
+    if (!user) {
       alert("You must be logged in or register first to buy a plan.");
       return;
     }
 
-    // Find the price by planName
     const plan = subscriptionPlans.find((p) => p.name === planName);
     if (!plan) {
       alert("Invalid plan selected.");
       return;
     }
 
-    // Prepare payload
     const paymentPayload: PaymentCreatePayload = {
-      user_id: user.user_id,
+      user_id: user.id,
       plan: planName,
       amount: Number(plan.price),
-      date: new Date().toISOString(), // current date-time in ISO format
+      date: new Date().toISOString(),
     };
 
     try {
@@ -93,15 +100,38 @@ export default function PaymentPage() {
 
       const data = await res.json();
       alert(
-        `Successfully bought ${planName} plan for ${user.fullName}!\nPayment ID: ${data.id}`
+        `Successfully bought ${planName} plan for ${user.full_name}!\nPayment ID: ${data.id}`
       );
-      // Optionally redirect to dashboard or receipt page here
+      // Optionally navigate after purchase
       // navigate("/dashboard");
     } catch (error) {
       alert("Payment failed: Network or server error.");
       console.error("Payment error:", error);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center mt-20 text-gray-600">
+        Loading user info...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center text-red-600 text-lg font-semibold mt-20">
+        You must be logged in or register first to buy a plan.
+        <br />
+        <button
+          onClick={() => navigate("/login")}
+          className="mt-4 underline text-blue-600"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[60vh] bg-[#f0f9ff] flex flex-col justify-center items-center pt-30 px-6 sm:px-10 lg:px-16">
@@ -112,66 +142,53 @@ export default function PaymentPage() {
         transition={{ duration: 1 }}
         className="w-7xl"
       >
-        {user.user_id && user.fullName ? (
-          <>
-            <h1 className="text-4xl font-extrabold text-[#3C5773] mb-4 text-center">
-              Welcome, {user.fullName}!
-            </h1>
-            <h2 className="text-xl text-center mb-8 text-[#3C5773]">
-              Choose a Subscription Plan:
-            </h2>
-            <div className="grid gap-10 sm:grid-cols-1 md:grid-cols-3 max-w-7xl w-full">
-              {subscriptionPlans.map((plan) => (
-                <div
-                  key={plan.name}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col"
-                >
-                  <div className="p-8 flex flex-col flex-grow">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-2xl font-semibold text-gray-900">
-                        {plan.name}
-                      </h2>
-                      <span className="text-xl font-semibold text-blue-600">
-                        Rs {plan.price}
-                      </span>
-                    </div>
-
-                    <ul className="flex flex-col gap-3 text-gray-600 text-sm mb-auto">
-                      <li className="border-b border-gray-200 pb-2">
-                        Unlimited Reports
-                      </li>
-                      <li className="border-b border-gray-200 pb-2">
-                        Multiple File Uploads
-                      </li>
-                      <li className="border-b border-gray-200 pb-2">
-                        Citations Check
-                      </li>
-                      <li>Reports Export</li>
-                    </ul>
+        <>
+          <h1 className="text-4xl font-extrabold text-[#3C5773] mb-4 text-center">
+            Welcome, {user.full_name}!
+          </h1>
+          <h2 className="text-xl text-center mb-8 text-[#3C5773]">
+            Choose a Subscription Plan to proceed further:
+          </h2>
+          <div className="grid gap-10 sm:grid-cols-1 md:grid-cols-3 max-w-7xl w-full">
+            {subscriptionPlans.map((plan) => (
+              <div
+                key={plan.name}
+                className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col"
+              >
+                <div className="p-8 flex flex-col flex-grow">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold text-gray-900">
+                      {plan.name}
+                    </h2>
+                    <span className="text-xl font-semibold text-blue-600">
+                      Rs {plan.price}
+                    </span>
                   </div>
-                  <button
-                    onClick={() => handleBuy(plan.name)}
-                    style={{ borderColor: "#3C5773", color: "#3C5773" }}
-                    className="self-start ml-4 py-2 rounded-[10px] border-1 w-64 mb-8 font-semibold text-lg hover:bg-[#eee] transition-colors duration-300 shadow-sm hover:shadow-md"
-                  >
-                    Buy Now
-                  </button>
+
+                  <ul className="flex flex-col gap-3 text-gray-600 text-sm mb-auto">
+                    <li className="border-b border-gray-200 pb-2">
+                      Unlimited Reports
+                    </li>
+                    <li className="border-b border-gray-200 pb-2">
+                      Multiple File Uploads
+                    </li>
+                    <li className="border-b border-gray-200 pb-2">
+                      Citations Check
+                    </li>
+                    <li>Reports Export</li>
+                  </ul>
                 </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="text-center text-red-600 text-lg font-semibold mt-10">
-            You must be logged in or register first to buy a plan.
-            <br />
-            <button
-              onClick={() => navigate("/register")}
-              className="mt-4 underline text-blue-600"
-            >
-              Go to Registration
-            </button>
+                <button
+                  onClick={() => handleBuy(plan.name)}
+                  style={{ borderColor: "#3C5773", color: "#3C5773" }}
+                  className="self-start ml-4 py-2 rounded-[10px] border-1 w-64 mb-8 font-semibold text-lg hover:bg-[#eee] transition-colors duration-300 shadow-sm hover:shadow-md"
+                >
+                  Buy Now
+                </button>
+              </div>
+            ))}
           </div>
-        )}
+        </>
       </motion.div>
     </div>
   );

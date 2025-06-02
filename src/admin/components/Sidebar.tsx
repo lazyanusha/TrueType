@@ -8,11 +8,12 @@ export default function Sidebar() {
 
   const navigate = useNavigate();
 
+  const { logout } = useAuth();
+
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
-      // Clear auth tokens, etc.
-      localStorage.removeItem("authToken");
-      alert("Logging out...");
+      logout(); // Clears state and token properly
+      alert("You have been logged out.");
       navigate("/");
     }
   };
@@ -54,7 +55,9 @@ export default function Sidebar() {
 
       <main className="ml-[300px] bg-gray-50 min-h-screen flex flex-col">
         <div className="flex justify-between items-center py-8 px-14 border-b bg-white">
-          <h1 className="text-xl font-bold text-[#3C5773]">Administration Console</h1>
+          <h1 className="text-xl font-bold text-[#3C5773]">
+            Administration Console
+          </h1>
 
           <div className="relative">
             <button
@@ -69,7 +72,11 @@ export default function Sidebar() {
                 strokeWidth={2}
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 

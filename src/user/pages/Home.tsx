@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { handleDownloadPDF } from "../handler/HandleDownloadPdf";
 import type { ResultData } from "../types/resultTypes";
@@ -9,9 +9,12 @@ import ResultSummary from "../components/ResultSummary";
 import FileUploadHandle from "../handler/FileUpholadHandle";
 import { checkPlagiarism } from "../utils/PlagiarismService";
 import ConfettiEffect from "../components/ConfettieEffect";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../auth/auth_context";
+import { confirmAlert } from "react-confirm-alert";
+import "react-confirm-alert/src/react-confirm-alert.css";
 
 const MAX_LOADING_TIME = 60;
-
 const Home = () => {
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -20,10 +23,35 @@ const Home = () => {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const loadingStartTimeRef = useRef<number>(0);
-
+  const navigate = useNavigate();
   const resultRef = useRef<HTMLDivElement>(null);
+  const { user, loading: authLoading, logout } = useContext(AuthContext);
+  const hasShownAlert = useRef(false);
 
-  // Start loading timer when loading begins
+  useEffect(() => {
+    if (!authLoading && user && user.subscription_status !== "active") {
+      hasShownAlert.current = true;
+      confirmAlert({
+        title: "Subscription Inactive",
+        message:
+          "Your subscription is inactive. Would you like to go to the payment page to activate it?",
+        buttons: [
+          {
+            label: "Yes",
+            onClick: () => navigate("/payment"),
+          },
+          {
+            label: "No",
+            onClick: () => {
+              logout();
+              alert("You have been logged out.");
+            },
+          },
+        ],
+      });
+    }
+  }, [authLoading, user, navigate, logout]);
+
   useEffect(() => {
     if (loading) {
       loadingStartTimeRef.current = Date.now();
@@ -54,12 +82,49 @@ const Home = () => {
     };
   }, [loading]);
 
+  useEffect(() => {
+    if (showResults && resultData) {
+      let progress = 0;
+      const target =
+        (resultData.total_exact_score ?? 0) +
+        (resultData.total_partial_score ?? 0);
+      const duration = 2000;
+      const increment = target / (duration / 20);
+      let mounted = true;
+
+      const timer = setInterval(() => {
+        progress += increment;
+        if (progress >= target) {
+          progress = target;
+          clearInterval(timer);
+        }
+        if (mounted) setAnimatedPercentage(Math.round(progress));
+      }, 20);
+
+      return () => {
+        mounted = false;
+        clearInterval(timer);
+      };
+    }
+  }, [showResults, resultData]);
+
+  useEffect(() => {
+    if (showResults && resultRef.current) {
+      const element = resultRef.current;
+      const top = element.offsetTop;
+      window.scrollTo({
+        top: top - window.innerHeight / 2 + element.offsetHeight / 2,
+        behavior: "smooth",
+      });
+    }
+  }, [showResults]);
+
+  // Handler
   const handleCheck = async (file: File) => {
     setLoading(true);
     const start = Date.now();
     try {
       const result = await checkPlagiarism(file);
-      console.log("API result:", result);
       const end = Date.now();
       setElapsedTime(Math.round((end - start) / 1000));
 
@@ -77,7 +142,6 @@ const Home = () => {
       setLoading(false);
     }
   };
-
   // Animate pie chart
   useEffect(() => {
     if (showResults && resultData) {
@@ -129,6 +193,15 @@ const Home = () => {
     paddingTop: "3rem",
     paddingBottom: "3rem",
   };
+
+  // Conditional render **only for UI** after hooks:
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        Checking authentication...
+      </div>
+    );
+  }
 
   return (
     <div style={pageBackgroundStyle}>
