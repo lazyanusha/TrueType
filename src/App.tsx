@@ -15,7 +15,7 @@ import Sidebar from "./admin/components/Sidebar";
 import AdminSettings from "./admin/pages/Settings";
 import TestRecords from "./admin/pages/TestResult";
 import UserSettingsPage from "./user/pages/UserSetting";
-import { LoginPage } from "./user/pages/Login";
+import LoginPage from "./user/pages/Login";
 
 function App() {
   useEffect(() => {

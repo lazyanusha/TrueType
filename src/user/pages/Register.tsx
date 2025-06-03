@@ -65,45 +65,59 @@ export default function RegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setErrors({}); // reset errors on new submit
+    setErrors({});
     const validationErrors = validateRegistration(formData);
     setErrors(validationErrors);
 
     if (Object.keys(validationErrors).length === 0) {
       try {
-        const response = await fetch("http://localhost:8000/api/register", {
+        // Prepare payload for FastAPI (transform camelCase to snake_case)
+        const payload = {
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+        };
+
+        const res = await fetch("http://localhost:8000/users/register", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fullName: formData.fullName,
-            email: formData.email,
-            phone: formData.phone,
-            password: formData.password,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          setErrors({ form: errorData.detail || "Registration failed" });
-          return;
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.detail || "Registration failed");
         }
 
-        const data = await response.json();
+        const result = await res.json();
+        localStorage.setItem("access_token", result.access_token);
 
-        // Success
-        setSuccessMessage(
-          "Registration successful! Redirecting to subscription details..."
-        );
+        // Fetch user info using access token
+        const userRes = await fetch("http://localhost:8000/users/me", {
+          headers: {
+            Authorization: `Bearer ${result.access_token}`,
+          },
+        });
 
-        setTimeout(() => {
-          navigate("/payment", {
-            state: { user: { user_id: data.id, fullName: data.fullName } },
-          });
-        }, 2000);
-      } catch (error) {
-        setErrors({ form: "Network error, please try again." });
+        if (!userRes.ok) throw new Error("Failed to fetch user info");
+
+        const userData = await userRes.json();
+
+        setSuccessMessage("Registration successful! Redirecting...");
+
+        // Redirect with user info
+        navigate("/payment", {
+          state: {
+            fromRegister: true,
+            user: {
+              user_id: userData.id,
+              fullName: userData.full_name,
+            },
+          },
+        });
+      } catch (err: any) {
+        alert(err.message || "Something went wrong");
       }
     }
   };

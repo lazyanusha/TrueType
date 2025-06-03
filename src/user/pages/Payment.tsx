@@ -1,4 +1,4 @@
-import {  useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Snowing from "../components/Snowing";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -23,23 +23,27 @@ interface PaymentCreatePayload {
 
 export default function PaymentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromRegister = location.state?.fromRegister;
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch current user info on mount by calling /api/auth/me
   useEffect(() => {
+    if (fromRegister) {
+      alert("Registration successful! Choose a subscription plan to continue.");
+    }
+
     const token =
       localStorage.getItem("access_token") ||
       sessionStorage.getItem("access_token");
 
     if (!token) {
-      // No token, redirect or show login prompt
       setLoading(false);
       setUser(null);
       return;
     }
 
-    fetch("http://localhost:8000/api/auth/me", {
+    fetch("http://localhost:8000/users/me", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -48,9 +52,7 @@ export default function PaymentPage() {
       mode: "cors",
     })
       .then(async (res) => {
-        if (!res.ok) {
-          throw new Error("Failed to fetch user");
-        }
+        if (!res.ok) throw new Error("Failed to fetch user");
         const data = await res.json();
         setUser(data);
       })
@@ -84,7 +86,7 @@ export default function PaymentPage() {
     };
 
     try {
-      const res = await fetch("/api/payments/", {
+      const res = await fetch("http://localhost:8000/khalti/verify-payment", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +104,6 @@ export default function PaymentPage() {
       alert(
         `Successfully bought ${planName} plan for ${user.full_name}!\nPayment ID: ${data.id}`
       );
-      // Optionally navigate after purchase
       // navigate("/dashboard");
     } catch (error) {
       alert("Payment failed: Network or server error.");
@@ -121,7 +122,7 @@ export default function PaymentPage() {
   if (!user) {
     return (
       <div className="text-center text-red-600 text-lg font-semibold mt-20">
-        You must be logged in or register first to buy a plan.
+        You must be logged in first to buy a plan.
         <br />
         <button
           onClick={() => navigate("/login")}
@@ -164,7 +165,6 @@ export default function PaymentPage() {
                       Rs {plan.price}
                     </span>
                   </div>
-
                   <ul className="flex flex-col gap-3 text-gray-600 text-sm mb-auto">
                     <li className="border-b border-gray-200 pb-2">
                       Unlimited Reports

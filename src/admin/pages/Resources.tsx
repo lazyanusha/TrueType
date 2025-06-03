@@ -1,37 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  deleteResource,
+  fetchResources,
+  updateResource,
+  uploadResource,
+} from "../api_helper/resources";
 
 interface Resource {
   id: number;
   title: string;
   description: string;
-  source: string;
-  fileName?: string;
-  fileUrl?: string;
-  uploadedAt: string;
+  authors: string[];
+  file_name?: string;
+  file_url?: string;
+  created_at: string;
 }
 
 export default function Resources() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [source, setSource] = useState("");
+  const [source, setSource] = useState(""); // comma-separated authors string
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState("");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-
   const [editId, setEditId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editSource, setEditSource] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const ITEMS_PER_PAGE = 7;
+  const token = localStorage.getItem("token") || "";
 
-  const isMeaningfulText = (text: string): boolean => {
-    const words = text.trim().split(/\s+/);
-    const validWords = words.filter((word) => /^[A-Za-z]{2,}$/.test(word));
-    return validWords.length >= 2;
-  };
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    fetchResources(token)
+      .then((data) => {
+        const formatted = data.map((res: any) => ({
+          ...res,
+          authors: Array.isArray(res.authors) ? res.authors : [],
+        }));
+        setResources(formatted);
+      })
+      .catch((err) => alert(err.message))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const isMeaningfulText = (text: string) =>
+    text
+      .trim()
+      .split(/\s+/)
+      .filter((w) => /^[A-Za-z]{2,}$/.test(w)).length >= 2;
 
   const isValidURL = (value: string) => {
     try {
@@ -42,48 +64,128 @@ export default function Resources() {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!title.trim() || !source.trim()) {
-      alert("Title and Source are required.");
+      alert("Title and Author(s) are required.");
       return;
     }
-
-    if (!isMeaningfulText(title)) {
-      alert("Please enter a meaningful title (e.g., 'Research Dataset').");
+    if (!isMeaningfulText(title) || !isMeaningfulText(source)) {
+      alert("Enter meaningful title and author(s).");
       return;
     }
-
-    if (!isMeaningfulText(source)) {
-      alert("Please enter a valid source or author name (e.g., 'John Smith').");
-      return;
-    }
-
     if (!file && (!url || !isValidURL(url))) {
-      alert("Please upload a file or provide a valid URL.");
+      alert("Upload a file or provide a valid URL.");
       return;
     }
 
-    const newResource: Resource = {
-      id: resources.length + 1,
-      title: title.trim(),
-      description: description.trim(),
-      source: source.trim(),
-      fileName: file?.name,
-      fileUrl: url || undefined,
-      uploadedAt: new Date().toISOString().split("T")[0],
-    };
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("content", description);
 
-    setResources([newResource, ...resources]);
-    setTitle("");
-    setDescription("");
-    setSource("");
-    setFile(null);
-    setUrl("");
-    setCurrentPage(1);
+    // convert authors to array from comma-separated string
+    const authorsArray = source
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    // Send authors as JSON string (backend expects JSON string)
+    formData.append("authors", JSON.stringify(authorsArray));
+
+    if (file) {
+      formData.append("file", file);
+    } else if (url) {
+      formData.append("file_url", url);
+    }
+
+    try {
+      setLoading(true);
+      const newRes = await uploadResource(formData, token);
+      newRes.authors = Array.isArray(newRes.authors) ? newRes.authors : [];
+      setResources((prev) => [newRes, ...prev]);
+      setTitle("");
+      setDescription("");
+      setSource("");
+      setFile(null);
+      setUrl("");
+      setCurrentPage(1);
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = (res: Resource) => {
+    setEditId(res.id);
+    setEditTitle(res.title);
+    setEditDescription(res.description);
+    setEditSource(res.authors.join(", "));
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setEditTitle("");
+    setEditDescription("");
+    setEditSource("");
+  };
+
+  const saveEdit = async () => {
+    if (!editTitle.trim() || !editSource.trim()) {
+      alert("Title and Author(s) are required.");
+      return;
+    }
+    const authorsArray = editSource
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean);
+
+    try {
+      setLoading(true);
+      const updated = await updateResource(
+        editId!,
+        {
+          title: editTitle,
+          description: editDescription,
+          authors: authorsArray,
+        },
+        token
+      );
+
+      updated.authors = Array.isArray(updated.authors) ? updated.authors : [];
+      setResources((prev) =>
+        prev.map((res) => (res.id === editId ? updated : res))
+      );
+      cancelEdit();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this resource?"))
+      return;
+
+    try {
+      setLoading(true);
+      await deleteResource(id, token);
+      setResources((prev) => prev.filter((r) => r.id !== id));
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredResources = resources.filter((r) =>
-    [r.title, r.description, r.source, r.fileName, r.fileUrl]
+    [
+      r.title,
+      r.description,
+      r.authors.join(", "),
+      r.file_name ?? "",
+      r.file_url ?? "",
+    ]
       .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase())
@@ -95,46 +197,8 @@ export default function Resources() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const startEdit = (resource: Resource) => {
-    setEditId(resource.id);
-    setEditTitle(resource.title);
-    setEditDescription(resource.description);
-    setEditSource(resource.source);
-  };
-
-  const cancelEdit = () => {
-    setEditId(null);
-    setEditTitle("");
-    setEditDescription("");
-    setEditSource("");
-  };
-
-  const saveEdit = () => {
-    if (!editTitle.trim() || !editSource.trim()) {
-      alert("Title and Source are required.");
-      return;
-    }
-    if (!isMeaningfulText(editTitle)) {
-      alert("Please enter a meaningful title.");
-      return;
-    }
-    if (!isMeaningfulText(editSource)) {
-      alert("Please enter a valid source.");
-      return;
-    }
-
-    setResources((prev) =>
-      prev.map((res) =>
-        res.id === editId
-          ? { ...res, title: editTitle.trim(), description: editDescription.trim(), source: editSource.trim() }
-          : res
-      )
-    );
-    cancelEdit();
-  };
-
   return (
-    <div className="mx-auto">
+    <div>
       <h1 className="text-2xl font-bold mb-4">Dataset Resources</h1>
 
       {/* Upload Section */}
@@ -147,13 +211,15 @@ export default function Resources() {
             className="p-2 border border-gray-300 rounded focus:outline-blue-500"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            disabled={loading}
           />
           <input
             type="text"
-            placeholder="Author *"
+            placeholder="Author(s) * (comma separated)"
             className="p-2 border border-gray-300 rounded focus:outline-blue-500"
             value={source}
             onChange={(e) => setSource(e.target.value)}
+            disabled={loading}
           />
           <textarea
             placeholder="Description"
@@ -161,11 +227,13 @@ export default function Resources() {
             className="p-2 border border-gray-300 rounded col-span-full focus:outline-blue-500"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            disabled={loading}
           />
           <input
             type="file"
             className="p-2 border border-gray-300 rounded focus:outline-blue-500"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
+            disabled={loading}
           />
           <input
             type="url"
@@ -173,13 +241,17 @@ export default function Resources() {
             className="p-2 border border-gray-300 rounded focus:outline-blue-500"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            disabled={loading}
           />
         </div>
         <button
           onClick={handleUpload}
-          className="mt-8 bg-[#3C5773] text-white px-4 py-2 rounded hover:bg-[#1B5773] transition"
+          className={`mt-8 bg-[#3C5773] text-white px-4 py-2 rounded hover:bg-[#1B5773] transition ${
+            loading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
+          disabled={loading}
         >
-          Upload Resource
+          {loading ? "Processing..." : "Upload Resource"}
         </button>
       </div>
 
@@ -193,133 +265,164 @@ export default function Resources() {
           setSearch(e.target.value);
           setCurrentPage(1);
         }}
+        disabled={loading}
       />
 
-      {/* Table */}
+      {/* Table UI */}
       <div className="overflow-auto max-h-[500px] border border-gray-100 rounded shadow-sm">
         <table className="min-w-full divide-y divide-gray-300 text-sm">
           <thead className="bg-gray-50 sticky top-0 z-10">
             <tr>
               <th className="text-left px-4 py-2">Title</th>
               <th className="text-left px-4 py-2">Description</th>
-              <th className="text-left px-4 py-2">Author</th>
-              <th className="text-left px-4 py-2">File/ Url</th>
+              <th className="text-left px-4 py-2">Author(s)</th>
+              <th className="text-left px-4 py-2">File/URL</th>
               <th className="text-left px-4 py-2">Uploaded</th>
-              <th className="text-left px-4 py-2">Update</th>
+              <th className="text-center px-4 py-2">Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
+          <tbody>
             {currentResources.map((res) => (
-              <tr key={res.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2">
-                  {editId === res.id ? (
-                    <input
-                      type="text"
-                      className="p-1 border border-gray-300 rounded w-full"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                    />
-                  ) : (
-                    res.title
-                  )}
-                </td>
-                <td className="px-4 py-2 text-gray-700 line-clamp-2 max-w-xs">
-                  {editId === res.id ? (
-                    <textarea
-                      rows={2}
-                      className="p-1 border border-gray-300 rounded w-full"
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                    />
-                  ) : (
-                    res.description
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  {editId === res.id ? (
-                    <input
-                      type="text"
-                      className="p-1 border border-gray-300 rounded w-full"
-                      value={editSource}
-                      onChange={(e) => setEditSource(e.target.value)}
-                    />
-                  ) : (
-                    res.source
-                  )}
-                </td>
-                <td className="px-4 py-2 text-blue-600 max-w-xs truncate">
-                  {res.fileName ? (
-                    <span title={res.fileName}>{res.fileName}</span>
-                  ) : res.fileUrl ? (
-                    <a
-                      href={res.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                      title={res.fileUrl}
-                    >
-                      {new URL(res.fileUrl).hostname +
-                        "/" +
-                        res.fileUrl.split("/").pop()}
-                    </a>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-                <td className="px-4 py-2">{res.uploadedAt}</td>
-                <td className="px-4 py-2">
-                  {editId === res.id ? (
-                    <>
+              <tr
+                key={res.id}
+                className="border-t border-gray-100 hover:bg-gray-50"
+              >
+                {editId === res.id ? (
+                  <>
+                    <td className="p-2">
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <textarea
+                        rows={1}
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-2 py-1"
+                      />
+                    </td>
+                    <td className="p-2">
+                      <input
+                        type="text"
+                        value={editSource}
+                        onChange={(e) => setEditSource(e.target.value)}
+                        placeholder="Author(s) comma separated"
+                        className="w-full border border-gray-300 rounded px-2 py-1"
+                      />
+                    </td>
+                    <td className="p-2 text-sm text-blue-700">
+                      {res.file_name || res.file_url ? (
+                        res.file_url ? (
+                          <a
+                            href={res.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline"
+                          >
+                            File URL
+                          </a>
+                        ) : (
+                          res.file_name
+                        )
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {new Date(res.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 text-center space-x-1">
                       <button
                         onClick={saveEdit}
-                        className="mr-2 bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                        className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                        disabled={loading}
                       >
                         Save
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+                        className="px-2 py-1 bg-gray-300 rounded hover:bg-gray-400"
+                        disabled={loading}
                       >
                         Cancel
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => startEdit(res)}
-                      className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-                    >
-                      Edit
-                    </button>
-                  )}
-                </td>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="p-2">{res.title}</td>
+                    <td className="p-2">{res.description || "-"}</td>
+                    <td className="p-2">{res.authors.join(", ") || "-"}</td>
+                    <td className="p-2 text-sm text-blue-700">
+                      {res.file_name || res.file_url ? (
+                        res.file_url ? (
+                          <a
+                            href={res.file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline"
+                          >
+                            File URL
+                          </a>
+                        ) : (
+                          res.file_name
+                        )
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="p-2">
+                      {new Date(res.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="p-2 text-center space-x-1">
+                      <button
+                        onClick={() => startEdit(res)}
+                        className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        disabled={loading}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(res.id)}
+                        className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        disabled={loading}
+                      >
+                        Delete
+                      </button>
+                    </td>{" "}
+                  </>
+                )}{" "}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ))}{" "}
+          </tbody>{" "}
+        </table>{" "}
       </div>
-
       {/* Pagination */}
-      {filteredResources.length > ITEMS_PER_PAGE && (
-        <div className="mt-4 flex justify-between items-center">
-          <button
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <div className="flex justify-between items-center mt-4">
+        <button
+          onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+          disabled={currentPage === 1 || loading}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+        >
+          Prev
+        </button>
+        <span className="px-4">
+          Page {currentPage} of {totalPages}
+        </span>
+        <button
+          onClick={() =>
+            setCurrentPage((page) => Math.min(page + 1, totalPages))
+          }
+          disabled={currentPage === totalPages || loading}
+          className="px-3 py-1 bg-gray-300 rounded hover:bg-gray-400"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }

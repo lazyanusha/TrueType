@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../../auth/auth_context";
+import { getAuthHeaders } from "../../auth/token";
 
 interface Subscription {
   plan: string;
@@ -15,50 +17,116 @@ interface User {
 }
 
 export default function Users() {
+  const { loading: authLoading } = useContext(AuthContext);
   const [search, setSearch] = useState("");
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 1,
-      name: "Alice",
-      email: "alice@example.com",
-      status: "active",
-      subscription: {
-        plan: "Monthly",
-        startDate: "2025-04-01",
-        expiryDate: "2025-04-30",
-      },
-    },
-    {
-      id: 2,
-      name: "Bob",
-      email: "bob@example.com",
-      status: "inactive",
-      subscription: {
-        plan: "Yearly",
-        startDate: "2024-05-01",
-        expiryDate: "2025-04-30",
-      },
-    },
-    {
-      id: 3,
-      name: "Charlie",
-      email: "charlie@example.com",
-      status: "active",
-      subscription: {
-        plan: "Monthly",
-        startDate: "2025-05-01",
-        expiryDate: "2025-05-31",
-      },
-    },
-  ]);
-
+  const [users, setUsers] = useState<User[]>([]);
   const [editId, setEditId] = useState<number | null>(null);
   const [editedUser, setEditedUser] = useState<Partial<User>>({});
+  const [error, setError] = useState<string | null>(null);
 
-  const plans = ["Monthly", "Yearly", "Weekly", "Trial"];
+  const plans = ["Monthly", "Yearly", "Weekly"];
+
+  useEffect(() => {
+    if (!authLoading) {
+      fetchUsers();
+    }
+  }, [authLoading]);
+
+  async function fetchUsers() {
+    setError(null);
+    try {
+      const res = await fetch(
+        "http://localhost:8000/api/user/users-with-subscriptions",
+        { headers: getAuthHeaders() }
+      );
+      if (!res.ok) throw new Error("Failed to fetch users");
+      const data = await res.json();
+      const mappedUsers: User[] = data.map((u: any) => ({
+        id: u.user_id,
+        name: u.full_name,
+        email: u.email,
+        status: u.status,
+        subscription: {
+          plan: u.subscription.plan,
+          startDate: u.subscription.startDate,
+          expiryDate: u.subscription.expiryDate,
+        },
+      }));
+      setUsers(mappedUsers);
+    } catch (err: any) {
+      setError(err.message || "Error loading users");
+    }
+  }
+  async function saveEdit() {
+    if (editId === null) return;
+    setError(null);
+    try {
+      const updatedUser = editedUser as User;
+      const res = await fetch(
+        `http://localhost:8000/api/user/payments/${editId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            full_name: updatedUser.name,
+            email: updatedUser.email,
+            status: updatedUser.status,
+            subscription: {
+              plan: updatedUser.subscription.plan,
+              start_date: updatedUser.subscription.startDate,
+              expiry_date: updatedUser.subscription.expiryDate,
+            },
+          }),
+        }
+      );
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || "Failed to update user");
+      }
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editId ? (editedUser as User) : u))
+      );
+      setEditId(null);
+      setEditedUser({});
+    } catch (err: any) {
+      setError(err.message || "Error updating user");
+    }
+  }
+
+  async function deleteUser(id: number) {
+    setError(null);
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    try {
+      const res = await fetch(`http://localhost:8000/api/user/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || "Failed to delete user");
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      if (editId === id) {
+        setEditId(null);
+        setEditedUser({});
+      }
+    } catch (err: any) {
+      setError(err.message || "Error deleting user");
+    }
+  }
 
   const filteredUsers = users.filter((u) =>
-    [u.name, u.email, u.status, u.subscription.plan, u.subscription.startDate, u.subscription.expiryDate]
+    [
+      u.name,
+      u.email,
+      u.status,
+      u.subscription.plan,
+      u.subscription.startDate,
+      u.subscription.expiryDate,
+    ]
       .join(" ")
       .toLowerCase()
       .includes(search.toLowerCase())
@@ -72,19 +140,18 @@ export default function Users() {
   const cancelEdit = () => {
     setEditId(null);
     setEditedUser({});
+    setError(null);
   };
 
-  const saveEdit = () => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === editId ? { ...(editedUser as User) } : u))
-    );
-    setEditId(null);
-    setEditedUser({});
-  };
+  if (authLoading) return null; // Don't show anything until user is loaded
 
   return (
-    <div className="mx-auto">
+    <div>
       <h1 className="text-2xl font-semibold mb-4">All Users</h1>
+
+      {error && (
+        <div className="mb-4 p-2 bg-red-200 text-red-700 rounded">{error}</div>
+      )}
 
       <input
         type="text"
@@ -102,7 +169,9 @@ export default function Users() {
             <th className="border border-gray-300 p-2 text-left">Status</th>
             <th className="border border-gray-300 p-2 text-left">Plan</th>
             <th className="border border-gray-300 p-2 text-left">Start Date</th>
-            <th className="border border-gray-300 p-2 text-left">Expiry Date</th>
+            <th className="border border-gray-300 p-2 text-left">
+              Expiry Date
+            </th>
             <th className="border border-gray-300 p-2 text-left">Actions</th>
           </tr>
         </thead>
@@ -242,12 +311,20 @@ export default function Users() {
                       </button>
                     </div>
                   ) : (
-                    <button
-                      className="text-blue-600 hover:underline"
-                      onClick={() => startEdit(u)}
-                    >
-                      Edit
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className="text-blue-600 hover:underline"
+                        onClick={() => startEdit(u)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="text-red-600 hover:underline"
+                        onClick={() => deleteUser(u.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

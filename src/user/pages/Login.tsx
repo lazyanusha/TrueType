@@ -1,11 +1,14 @@
+// src/pages/login.tsx
+
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../auth/auth_context";
 import Snowing from "../components/Snowing";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
+import { fetchUserProfile, loginUser } from "../../api/login";
 
-export const LoginPage = () => {
+const LoginPage: React.FC = () => {
   const { setUser } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -14,6 +17,7 @@ export const LoginPage = () => {
     password: "",
     rememberMe: false,
   });
+
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
@@ -22,56 +26,27 @@ export const LoginPage = () => {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          remember_me: formData.rememberMe,
-        }),
-      });
+      const { access_token, refresh_token } = await loginUser(
+        formData.email,
+        formData.password,
+        formData.rememberMe
+      );
 
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.detail || "Login failed");
-        return;
-      }
+      const storage = formData.rememberMe ? localStorage : sessionStorage;
+      storage.setItem("access_token", access_token);
+      storage.setItem("refresh_token", refresh_token);
 
-      const data = await res.json();
+      const userData = await fetchUserProfile(access_token);
+      setUser(userData);
 
-      // Conditionally store token based on Remember Me
-      if (formData.rememberMe) {
-        localStorage.setItem("access_token", data.access_token);
-      } else {
-        sessionStorage.setItem("access_token", data.access_token);
-      }
-
-      // Fetch user info using token
-      const meRes = await fetch("http://localhost:8000/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${data.access_token}`,
-        },
-      });
-
-      if (!meRes.ok) {
-        setError("Failed to fetch user info");
-        return;
-      }
-
-      const userData = await meRes.json();
-      console.log("User Data:", userData);
-
-      setUser(userData); // set user in context
-
-      // Role-based redirect
+      // Redirect based on role
       if (userData.roles?.toLowerCase() === "admin") {
         navigate("/admin");
       } else {
         navigate("/");
       }
-    } catch (err) {
-      setError("Unexpected error occurred");
+    } catch (err: any) {
+      setError(err.message || "Unexpected error occurred");
       console.error(err);
     }
   };
@@ -85,7 +60,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[calc(90vh-100px)] bg-[#f0f9ff] flex align-center items-center justify-center">
+    <div className="min-h-[calc(90vh-100px)] bg-[#f0f9ff] flex items-center justify-center">
       <Snowing />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
@@ -94,11 +69,7 @@ export const LoginPage = () => {
         className="max-w-md w-full bg-white shadow-xl rounded-xl p-8 md:p-10"
       >
         <div className="text-center mb-8">
-          <img
-            src="logo.png"
-            alt="TrueType Logo"
-            className="mx-auto h-24 w-auto"
-          />
+          <img src="logo.png" alt="TrueType Logo" className="mx-auto h-24" />
           <p className="text-lg text-gray-600">Welcome to TrueType</p>
           <p className="text-sm text-gray-500">
             Sign in or create a new account
@@ -107,10 +78,7 @@ export const LoginPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="email" className="text-sm font-medium text-gray-700">
               Email Address
             </label>
             <input
@@ -126,20 +94,16 @@ export const LoginPage = () => {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">
               Password
             </label>
-
             <div className="relative">
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 pr-10"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg pr-10 focus:ring-blue-500 focus:border-blue-500"
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
@@ -147,7 +111,7 @@ export const LoginPage = () => {
               <button
                 type="button"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword((prev) => !prev)}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -160,7 +124,7 @@ export const LoginPage = () => {
                   name="rememberMe"
                   checked={formData.rememberMe}
                   onChange={handleChange}
-                  className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="mr-2 rounded border-gray-300 text-blue-600"
                 />
                 Remember Me
               </label>
@@ -170,13 +134,11 @@ export const LoginPage = () => {
             </div>
           </div>
 
-          {error && (
-            <p className="text-red-600 text-sm font-medium mt-2">{error}</p>
-          )}
+          {error && <p className="text-red-600 text-sm font-medium">{error}</p>}
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium shadow-md transition"
           >
             Log In
           </button>
@@ -185,10 +147,7 @@ export const LoginPage = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             New here?{" "}
-            <a
-              href="register"
-              className="text-blue-600 hover:underline font-medium"
-            >
+            <a href="/register" className="text-blue-600 hover:underline font-medium">
               Sign Up
             </a>
           </p>
@@ -197,3 +156,5 @@ export const LoginPage = () => {
     </div>
   );
 };
+
+export default LoginPage;

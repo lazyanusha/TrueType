@@ -1,22 +1,34 @@
 import { useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../user/utils/useAuth";
 
 export default function Sidebar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user } = useAuth(); // get current logged-in user
+  const { user, logout, loading } = useAuth(); // use all at once
 
   const navigate = useNavigate();
 
-  const { logout } = useAuth();
-
   const handleLogout = () => {
     if (confirm("Are you sure you want to log out?")) {
-      logout(); // Clears state and token properly
+      logout();
       alert("You have been logged out.");
       navigate("/");
     }
   };
+
+  // Wait for auth check before rendering
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen text-[#3C5773]">
+        Loading...
+      </div>
+    );
+  }
+
+  // If user is not an admin, redirect
+  if (!user || !user.roles?.includes("admin")) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <>
@@ -30,7 +42,7 @@ export default function Sidebar() {
               <img src="/logo2.png" alt="Logo" className="w-50 h-auto -mt-10" />
             </Link>
             <p className="-mt-14 text-lg font-semibold pl-6">
-              Welcome, {user?.email || "Admin"}
+              Welcome, {user?.full_name}
             </p>
           </div>
 
@@ -64,7 +76,7 @@ export default function Sidebar() {
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none"
             >
-              <span>{user?.email || "Admin"}</span>
+              <span>{user?.email}</span>
               <svg
                 className="w-4 h-4"
                 fill="none"
