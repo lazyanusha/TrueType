@@ -48,6 +48,8 @@ const Home = () => {
             },
           },
         ],
+        closeOnEscape: false,
+        closeOnClickOutside: false,
       });
     }
   }, [authLoading, user, navigate, logout]);
