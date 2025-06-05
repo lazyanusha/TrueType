@@ -8,7 +8,7 @@ const Layout = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { user, logout } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -22,6 +22,50 @@ const Layout = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to log out?");
+    if (!confirmed) return;
+
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+    if (!token) {
+      console.error("No token found in storage");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:8000/users/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        // Remove tokens with correct keys
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+
+        sessionStorage.removeItem("access_token");
+        sessionStorage.removeItem("refresh_token");
+        sessionStorage.removeItem("user");
+
+        // Clear user from context to update UI
+        setUser(null);
+
+        navigate("/");
+      } else {
+        const error = await res.json();
+        console.error("Failed to logout:", error);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f0f9ff] text-gray-800">
@@ -103,15 +147,7 @@ const Layout = () => {
                       </Link>
 
                       <button
-                        onClick={() => {
-                          const confirmed = window.confirm(
-                            "Are you sure you want to log out?"
-                          );
-                          if (confirmed) {
-                            logout();
-                            navigate("/"); // Redirect to homepage
-                          }
-                        }}
+                        onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-600 hover:text-white"
                       >
                         Logout
@@ -179,10 +215,7 @@ const Layout = () => {
                 { to: "/how-it-works", label: "How It Works" },
                 { to: "/contact", label: "Contact" },
                 ...(user && user.roles?.toLowerCase() !== "admin"
-                  ? [
-                      { to: "/usersetting", label: "Settings" },
-                      // Logout is a button, so we will handle it separately below
-                    ]
+                  ? [{ to: "/usersetting", label: "Settings" }]
                   : [
                       { to: "/login", label: "Log In" },
                       { to: "/register", label: "Register" },
@@ -201,16 +234,7 @@ const Layout = () => {
               {/* Show logout button if user logged in */}
               {user && (
                 <button
-                  onClick={() => {
-                    const confirmed = window.confirm(
-                      "Are you sure you want to log out?"
-                    );
-                    if (confirmed) {
-                      logout();
-                      setMenuOpen(false);
-                      navigate("/"); // Redirect to homepage
-                    }
-                  }}
+                  onClick={handleLogout}
                   className="text-left hover:text-blue-600 transition-colors duration-200"
                 >
                   Logout

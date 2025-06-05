@@ -6,6 +6,7 @@ import React, {
 } from "react";
 
 type User = {
+  id: number;
   roles: any;
   email: string;
   full_name: string;

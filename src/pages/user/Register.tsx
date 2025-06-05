@@ -16,9 +16,9 @@ interface RegistrationData {
 }
 
 interface Plan {
+  price_rs: number;
   id: number;
   name: string;
-  price: number;
 }
 
 export default function RegistrationForm() {
@@ -44,23 +44,22 @@ export default function RegistrationForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-
   useEffect(() => {
-  fetch("http://localhost:8000/plans")
-    .then((res) => res.json())
-    .then((data) => {
-      const filteredPlans = data.filter((plan: Plan) => plan.id !== 0);
-      setPlans(filteredPlans);
-    })
-    .catch(() => {
-      setPlans([
-        { id: 1, name: "Weekly", price: 199 },
-        { id: 2, name: "Monthly", price: 499 },
-        { id: 3, name: "Yearly", price: 4999 },
-      ]);
-    });
-}, []);
-
+    fetch("http://localhost:8000/plans")
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Plans fetched from backend:", data);
+        setPlans(data);
+      })
+      .catch(() => {
+        // Fallback plans if fetch fails
+        setPlans([
+          { id: 2, name: "Weekly", price_rs: 199 },
+          { id: 3, name: "Monthly", price_rs: 499 },
+          { id: 4, name: "Yearly", price_rs: 4999 },
+        ]);
+      });
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -366,7 +365,7 @@ export default function RegistrationForm() {
                       <div className="flex justify-between mb-2">
                         <h2 className="text-lg font-medium">{plan.name}</h2>
                         <span className="text-gray-700">
-                          Rs {plan.price} {duration}
+                          Rs {plan.price_rs ?? "N/A"} {duration}{" "}
                         </span>
                       </div>
                       <div className="flex justify-between items-start gap-8">

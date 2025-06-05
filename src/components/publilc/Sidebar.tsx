@@ -4,11 +4,10 @@ import { useAuth } from "../../utils/useAuth";
 
 export default function Sidebar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user, loading } = useAuth(); // use all at once
+  const { user, loading , setUser} = useAuth();
 
   const navigate = useNavigate();
 
-  // Wait for auth check before rendering
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen text-[#3C5773]">
@@ -17,10 +16,53 @@ export default function Sidebar() {
     );
   }
 
-  // If user is not an admin, redirect
   if (!user || !user.roles?.includes("admin")) {
     return <Navigate to="/" replace />;
   }
+
+  const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to log out?");
+    if (!confirmed) return;
+
+    const token =
+      localStorage.getItem("access_token") ||
+      sessionStorage.getItem("access_token");
+    if (!token) {
+      console.error("No token found in storage");
+      return;
+    }
+
+    try {
+      const res = await fetch("http://localhost:8000/users/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        // Remove tokens with correct keys
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+        localStorage.removeItem("user");
+
+        sessionStorage.removeItem("access_token");
+        sessionStorage.removeItem("refresh_token");
+        sessionStorage.removeItem("user");
+
+        // Clear user from context to update UI
+        setUser(null);
+
+        navigate("/");
+      } else {
+        const error = await res.json();
+        console.error("Failed to logout:", error);
+      }
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <>
@@ -93,40 +135,8 @@ export default function Sidebar() {
                   Settings
                 </Link>
                 <button
-                  onClick={async () => {
-                    const confirmed = window.confirm(
-                      "Are you sure you want to log out?"
-                    );
-                    if (confirmed) {
-                      const token = localStorage.getItem("token"); // or from cookies if you're using cookies
-
-                      try {
-                        const res = await fetch(
-                          "http://localhost:8000/users/logout",
-                          {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`,
-                            },
-                          }
-                        );
-
-                        if (res.ok) {
-                          // Clear storage and redirect after successful logout
-                          localStorage.removeItem("token");
-
-                          localStorage.removeItem("user");
-                          navigate("/"); // Redirect to homepage
-                        } else {
-                          console.error("Failed to logout:", await res.json());
-                        }
-                      } catch (error) {
-                        console.error("Logout error:", error);
-                      }
-                    }
-                  }}
-                   className="block px-4 py-2 w-full text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={handleLogout}
+                  className="block px-4 py-2 w-full text-sm text-gray-700 hover:bg-gray-100"
                 >
                   Logout
                 </button>

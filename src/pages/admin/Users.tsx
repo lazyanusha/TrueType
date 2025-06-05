@@ -255,6 +255,7 @@ export default function Users() {
                           })
                         }
                       >
+                        <option value="inactive">Inactive</option>
                         <option value="active">Active</option>
                         <option value="expired">Expired</option>
                         <option value="none">None</option>

@@ -128,7 +128,7 @@ export const TabsContent = ({
   children,
   activeTab,
   className,
-  height = "h-[400px]",
+  height = "h-[500px]",
   ...props
 }: TabsContentProps) => {
   if (activeTab !== value) return null;

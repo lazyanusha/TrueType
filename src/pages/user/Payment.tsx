@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 interface Plan {
+  id: number;
   name: string;
-  price: string;
+  price_rs: number; 
 }
 
 interface User {
@@ -25,9 +26,14 @@ export default function PaymentPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromRegister = location.state?.fromRegister;
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
+  const [user, setUser] = useState<User | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingPlans, setLoadingPlans] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch user info
   useEffect(() => {
     if (fromRegister) {
       alert("Registration successful! Choose a subscription plan to continue.");
@@ -38,7 +44,7 @@ export default function PaymentPage() {
       sessionStorage.getItem("access_token");
 
     if (!token) {
-      setLoading(false);
+      setLoadingUser(false);
       setUser(null);
       return;
     }
@@ -57,22 +63,34 @@ export default function PaymentPage() {
         setUser(data);
       })
       .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingUser(false));
   }, []);
 
-  const subscriptionPlans: Plan[] = [
-    { name: "Weekly", price: "200" },
-    { name: "Monthly", price: "700" },
-    { name: "Yearly", price: "1450" },
-  ];
+  // Fetch plans from backend
+  useEffect(() => {
+    fetch("http://localhost:8000/plans")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch plans");
+        const data = await res.json();
+        setPlans(data);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingPlans(false));
+  }, []);
 
   const handleBuy = async (planName: string) => {
     if (!user) {
-      alert("You must be logged in or register first to buy a plan.");
+      if (
+        window.confirm(
+          "You must be logged in to buy a plan. Do you want to go to login?"
+        )
+      ) {
+        navigate("/login");
+      }
       return;
     }
 
-    const plan = subscriptionPlans.find((p) => p.name === planName);
+    const plan = plans.find((p) => p.name === planName);
     if (!plan) {
       alert("Invalid plan selected.");
       return;
@@ -81,7 +99,7 @@ export default function PaymentPage() {
     const paymentPayload: PaymentCreatePayload = {
       user_id: user.id,
       plan: planName,
-      amount: Number(plan.price),
+      amount: Number(plan.price_rs),
       date: new Date().toISOString(),
     };
 
@@ -104,32 +122,25 @@ export default function PaymentPage() {
       alert(
         `Successfully bought ${planName} plan for ${user.full_name}!\nPayment ID: ${data.id}`
       );
-      // navigate("/dashboard");
+      // Optionally navigate somewhere
     } catch (error) {
       alert("Payment failed: Network or server error.");
       console.error("Payment error:", error);
     }
   };
 
-  if (loading) {
+  if (loadingUser || loadingPlans) {
     return (
       <div className="text-center mt-20 text-gray-600">
-        Loading user info...
+        Loading...
       </div>
     );
   }
 
-  if (!user) {
+  if (error) {
     return (
-      <div className="text-center text-red-600 text-lg font-semibold mt-20">
-        You must be logged in first to buy a plan.
-        <br />
-        <button
-          onClick={() => navigate("/login")}
-          className="mt-4 underline text-blue-600"
-        >
-          Go to Login
-        </button>
+      <div className="text-center mt-20 text-red-600">
+        Error loading plans: {error}
       </div>
     );
   }
@@ -145,15 +156,15 @@ export default function PaymentPage() {
       >
         <>
           <h1 className="text-4xl font-extrabold text-[#3C5773] mb-4 text-center">
-            Welcome, {user.full_name}!
+            Welcome, {user ? user.full_name : "User"}!
           </h1>
           <h2 className="text-xl text-center mb-8 text-[#3C5773]">
             Choose a Subscription Plan to proceed further:
           </h2>
           <div className="grid gap-10 sm:grid-cols-1 md:grid-cols-3 max-w-7xl w-full">
-            {subscriptionPlans.map((plan) => (
+            {plans.map((plan) => (
               <div
-                key={plan.name}
+                key={plan.id}
                 className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col"
               >
                 <div className="p-8 flex flex-col flex-grow">
@@ -162,7 +173,7 @@ export default function PaymentPage() {
                       {plan.name}
                     </h2>
                     <span className="text-xl font-semibold text-blue-600">
-                      Rs {plan.price}
+                      Rs {plan.price_rs}
                     </span>
                   </div>
                   <ul className="flex flex-col gap-3 text-gray-600 text-sm mb-auto">
