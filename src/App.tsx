@@ -17,6 +17,7 @@ import TestRecords from "./admin/pages/TestResult";
 import UserSettingsPage from "./user/pages/UserSetting";
 import LoginPage from "./user/pages/Login";
 
+
 function App() {
   useEffect(() => {
     // When component mounts (page reloads), scroll smoothly to top
@@ -35,6 +36,7 @@ function App() {
           <Route path="contact" element={<Contact />} />
           <Route path="payment" element={<PaymentPage />} />
           <Route path="usersetting" element={<UserSettingsPage/>} />
+          
         </Route>
 
         {/* Admin routes */}

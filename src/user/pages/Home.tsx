@@ -9,253 +9,285 @@ import ResultSummary from "../components/ResultSummary";
 import FileUploadHandle from "../handler/FileUpholadHandle";
 import { checkPlagiarism } from "../utils/PlagiarismService";
 import ConfettiEffect from "../components/ConfettieEffect";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../../auth/auth_context";
 import { confirmAlert } from "react-confirm-alert";
 import "react-confirm-alert/src/react-confirm-alert.css";
 
 const MAX_LOADING_TIME = 60;
 const Home = () => {
-  const [resultData, setResultData] = useState<ResultData | null>(null);
-  const [showResults, setShowResults] = useState(false);
-  const [animatedPercentage, setAnimatedPercentage] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const loadingStartTimeRef = useRef<number>(0);
-  const navigate = useNavigate();
-  const resultRef = useRef<HTMLDivElement>(null);
-  const { user, loading: authLoading, logout } = useContext(AuthContext);
-  const hasShownAlert = useRef(false);
+	const [resultData, setResultData] = useState<ResultData | null>(null);
+	const [showResults, setShowResults] = useState(false);
+	const [animatedPercentage, setAnimatedPercentage] = useState(0);
+	const [loading, setLoading] = useState(false);
+	const [elapsedTime, setElapsedTime] = useState<number>(0);
+	const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const loadingStartTimeRef = useRef<number>(0);
+	const navigate = useNavigate();
+	const resultRef = useRef<HTMLDivElement>(null);
+	const { user, loading: authLoading, logout } = useContext(AuthContext);
+	const hasShownAlert = useRef(false);
 
-  useEffect(() => {
-    if (!authLoading && user && user.subscription_status !== "active") {
-      hasShownAlert.current = true;
-      confirmAlert({
-        title: "Subscription Inactive",
-        message:
-          "Your subscription is inactive. Would you like to go to the payment page to activate it?",
-        buttons: [
-          {
-            label: "Yes",
-            onClick: () => navigate("/payment"),
-          },
-          {
-            label: "No",
-            onClick: () => {
-              logout();
-              alert("You have been logged out.");
-            },
-          },
-        ],
-        closeOnEscape: false,
-        closeOnClickOutside: false,
-      });
-    }
-  }, [authLoading, user, navigate, logout]);
+	// Inside the component
+	const [searchParams] = useSearchParams();
+	useEffect(() => {
+		const pidx = searchParams.get("pidx");
 
-  useEffect(() => {
-    if (loading) {
-      loadingStartTimeRef.current = Date.now();
-      setElapsedTime(0);
+		if (pidx) {
+			const verifyPayment = async () => {
+				try {
+					const res = await fetch(
+						`http://localhost:8000/khalti/verify?pidx=${pidx}`
+					);
+					if (!res.ok) {
+						console.warn("Failed to verify payment. HTTP error.");
+						return;
+					}
+					const data = await res.json();
 
-      loadingTimerRef.current = setInterval(() => {
-        const now = Date.now();
-        const secondsElapsed = Math.floor(
-          (now - loadingStartTimeRef.current) / 1000
-        );
+					if (data?.status === "Completed") {
+						console.log("✅ Payment verified:", data);
+						// Optional: show toast or alert
+					} else {
+						console.warn("⚠️ Payment not completed or invalid.");
+					}
+				} catch (error) {
+					console.error("Error verifying payment:", error);
+				}
+			};
 
-        setElapsedTime(
-          secondsElapsed > MAX_LOADING_TIME ? MAX_LOADING_TIME : secondsElapsed
-        );
-      }, 500);
-    } else {
-      if (loadingTimerRef.current) {
-        clearInterval(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
-    }
+			verifyPayment();
+		}
+	}, [searchParams]);
 
-    return () => {
-      if (loadingTimerRef.current) {
-        clearInterval(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
-    };
-  }, [loading]);
+	useEffect(() => {
+		if (!authLoading && user && user.subscription_status !== "active") {
+			hasShownAlert.current = true;
+			confirmAlert({
+				title: "Subscription Inactive",
+				message:
+					"Your subscription is inactive. Would you like to go to the payment page to activate it?",
+				buttons: [
+					{
+						label: "Yes",
+						onClick: () => navigate("/payment"),
+					},
+					{
+						label: "No",
+						onClick: () => {
+							logout();
+							alert("You have been logged out.");
+						},
+					},
+				],
+				closeOnEscape: false,
+				closeOnClickOutside: false,
+			});
+		}
+	}, [authLoading, user, navigate, logout]);
 
-  useEffect(() => {
-    if (showResults && resultData) {
-      let progress = 0;
-      const target =
-        (resultData.total_exact_score ?? 0) +
-        (resultData.total_partial_score ?? 0);
-      const duration = 2000;
-      const increment = target / (duration / 20);
-      let mounted = true;
+	useEffect(() => {
+		if (loading) {
+			loadingStartTimeRef.current = Date.now();
+			setElapsedTime(0);
 
-      const timer = setInterval(() => {
-        progress += increment;
-        if (progress >= target) {
-          progress = target;
-          clearInterval(timer);
-        }
-        if (mounted) setAnimatedPercentage(Math.round(progress));
-      }, 20);
+			loadingTimerRef.current = setInterval(() => {
+				const now = Date.now();
+				const secondsElapsed = Math.floor(
+					(now - loadingStartTimeRef.current) / 1000
+				);
 
-      return () => {
-        mounted = false;
-        clearInterval(timer);
-      };
-    }
-  }, [showResults, resultData]);
+				setElapsedTime(
+					secondsElapsed > MAX_LOADING_TIME ? MAX_LOADING_TIME : secondsElapsed
+				);
+			}, 500);
+		} else {
+			if (loadingTimerRef.current) {
+				clearInterval(loadingTimerRef.current);
+				loadingTimerRef.current = null;
+			}
+		}
 
-  useEffect(() => {
-    if (showResults && resultRef.current) {
-      const element = resultRef.current;
-      const top = element.offsetTop;
-      window.scrollTo({
-        top: top - window.innerHeight / 2 + element.offsetHeight / 2,
-        behavior: "smooth",
-      });
-    }
-  }, [showResults]);
+		return () => {
+			if (loadingTimerRef.current) {
+				clearInterval(loadingTimerRef.current);
+				loadingTimerRef.current = null;
+			}
+		};
+	}, [loading]);
 
-  // Handler
-  const handleCheck = async (file: File) => {
-    setLoading(true);
-    const start = Date.now();
-    try {
-      const result = await checkPlagiarism(file);
-      const end = Date.now();
-      setElapsedTime(Math.round((end - start) / 1000));
+	useEffect(() => {
+		if (showResults && resultData) {
+			let progress = 0;
+			const target =
+				(resultData.total_exact_score ?? 0) +
+				(resultData.total_partial_score ?? 0);
+			const duration = 2000;
+			const increment = target / (duration / 20);
+			let mounted = true;
 
-      if (result) {
-        setResultData(result);
-        setShowResults(true);
-      } else {
-        alert("Unexpected API response structure.");
-        setResultData(null);
-        setShowResults(false);
-      }
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  // Animate pie chart
-  useEffect(() => {
-    if (showResults && resultData) {
-      let progress = 0;
-      const target =
-        (resultData.total_exact_score ?? 0) +
-        (resultData.total_partial_score ?? 0);
-      const duration = 2000;
-      const increment = target / (duration / 20);
-      let mounted = true;
+			const timer = setInterval(() => {
+				progress += increment;
+				if (progress >= target) {
+					progress = target;
+					clearInterval(timer);
+				}
+				if (mounted) setAnimatedPercentage(Math.round(progress));
+			}, 20);
 
-      const timer = setInterval(() => {
-        progress += increment;
-        if (progress >= target) {
-          progress = target;
-          clearInterval(timer);
-        }
-        if (mounted) setAnimatedPercentage(Math.round(progress));
-      }, 20);
+			return () => {
+				mounted = false;
+				clearInterval(timer);
+			};
+		}
+	}, [showResults, resultData]);
 
-      return () => {
-        mounted = false;
-        clearInterval(timer);
-      };
-    }
-  }, [showResults, resultData]);
+	useEffect(() => {
+		if (showResults && resultRef.current) {
+			const element = resultRef.current;
+			const top = element.offsetTop;
+			window.scrollTo({
+				top: top - window.innerHeight / 2 + element.offsetHeight / 2,
+				behavior: "smooth",
+			});
+		}
+	}, [showResults]);
 
-  // Scroll to result section smoothly
-  useEffect(() => {
-    if (showResults && resultRef.current) {
-      const element = resultRef.current;
-      const top = element.offsetTop;
-      window.scrollTo({
-        top: top - window.innerHeight / 2 + element.offsetHeight / 2,
-        behavior: "smooth",
-      });
-    }
-  }, [showResults]);
+	// Handler
+	const handleCheck = async (file: File) => {
+		setLoading(true);
+		const start = Date.now();
+		try {
+			const result = await checkPlagiarism(file);
+			const end = Date.now();
+			setElapsedTime(Math.round((end - start) / 1000));
 
-  const getPathColor = (percentage: number) => {
-    if (percentage <= 15) return "#16a34a";
-    if (percentage <= 40) return "#f97316";
-    return "#dc2626";
-  };
+			if (result) {
+				setResultData(result);
+				setShowResults(true);
+			} else {
+				alert("Unexpected API response structure.");
+				setResultData(null);
+				setShowResults(false);
+			}
+		} catch (error: any) {
+			alert(error.message);
+		} finally {
+			setLoading(false);
+		}
+	};
+	// Animate pie chart
+	useEffect(() => {
+		if (showResults && resultData) {
+			let progress = 0;
+			const target =
+				(resultData.total_exact_score ?? 0) +
+				(resultData.total_partial_score ?? 0);
+			const duration = 2000;
+			const increment = target / (duration / 20);
+			let mounted = true;
 
-  const pageBackgroundStyle = {
-    backgroundColor: "#f0f9ff",
-    minHeight: "100vh",
-    paddingTop: "3rem",
-    paddingBottom: "3rem",
-  };
+			const timer = setInterval(() => {
+				progress += increment;
+				if (progress >= target) {
+					progress = target;
+					clearInterval(timer);
+				}
+				if (mounted) setAnimatedPercentage(Math.round(progress));
+			}, 20);
 
-  // Conditional render **only for UI** after hooks:
-  if (authLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        Checking authentication...
-      </div>
-    );
-  }
+			return () => {
+				mounted = false;
+				clearInterval(timer);
+			};
+		}
+	}, [showResults, resultData]);
 
-  return (
-    <div style={pageBackgroundStyle}>
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1 }}
-        className="max-w-7xl mx-auto relative z-10"
-      >
-        <div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <ConfettiEffect
-            active={loading && resultData?.unique_score === 100}
-          />
+	// Scroll to result section smoothly
+	useEffect(() => {
+		if (showResults && resultRef.current) {
+			const element = resultRef.current;
+			const top = element.offsetTop;
+			window.scrollTo({
+				top: top - window.innerHeight / 2 + element.offsetHeight / 2,
+				behavior: "smooth",
+			});
+		}
+	}, [showResults]);
 
-          <header className="mb-12 mt-10 text-center">
-            <h1 className="text-4xl font-extrabold mb-4 text-blue-900">
-              TrueType – Originality You Can Trust
-            </h1>
-            <p className="text-lg max-w-2xl mx-auto text-gray-800">
-              Ensure the originality of your content with our powerful
-              plagiarism checker.
-            </p>
-          </header>
+	const getPathColor = (percentage: number) => {
+		if (percentage <= 15) return "#16a34a";
+		if (percentage <= 40) return "#f97316";
+		return "#dc2626";
+	};
 
-          {/* Input Section */}
-          <FileUploadHandle onCheck={handleCheck} loading={loading} />
+	const pageBackgroundStyle = {
+		backgroundColor: "#f0f9ff",
+		minHeight: "100vh",
+		paddingTop: "3rem",
+		paddingBottom: "3rem",
+	};
 
-          {/* Result Section */}
-          <AnimatePresence>
-            {resultData && (
-              <ResultSummary
-                resultData={resultData}
-                animatedPercentage={animatedPercentage}
-                elapsedTime={elapsedTime}
-                showResults={showResults}
-                resultRef={resultRef}
-                handleDownloadPDF={handleDownloadPDF}
-                citationInfo={citationInfo}
-                getPathColor={getPathColor}
-                getCitationStyles={getCitationStyles}
-              />
-            )}
-          </AnimatePresence>
+	// Conditional render **only for UI** after hooks:
+	if (authLoading) {
+		return (
+			<div className="flex justify-center items-center min-h-screen">
+				Checking authentication...
+			</div>
+		);
+	}
 
-          {/* Features Section */}
-          <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 mb-8">
-            <FeaturesSection />
-          </section>
-        </div>
-      </motion.div>
-    </div>
-  );
+	return (
+		<div style={pageBackgroundStyle}>
+			<motion.div
+				initial={{ opacity: 0, y: 30 }}
+				animate={{ opacity: 1, y: 0 }}
+				transition={{ duration: 1 }}
+				className="max-w-7xl mx-auto relative z-10"
+			>
+				<div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+					<ConfettiEffect
+						active={loading && resultData?.unique_score === 100}
+					/>
+
+					<header className="mb-12 mt-10 text-center">
+						<h1 className="text-4xl font-extrabold mb-4 text-blue-900">
+							TrueType – Originality You Can Trust
+						</h1>
+						<p className="text-lg max-w-2xl mx-auto text-gray-800">
+							Ensure the originality of your content with our powerful
+							plagiarism checker.
+						</p>
+					</header>
+
+					{/* Input Section */}
+					<FileUploadHandle onCheck={handleCheck} loading={loading} />
+
+					{/* Result Section */}
+					<AnimatePresence>
+						{resultData && (
+							<ResultSummary
+								resultData={resultData}
+								animatedPercentage={animatedPercentage}
+								elapsedTime={elapsedTime}
+								showResults={showResults}
+								resultRef={resultRef}
+								handleDownloadPDF={handleDownloadPDF}
+								citationInfo={citationInfo}
+								getPathColor={getPathColor}
+								getCitationStyles={getCitationStyles}
+							/>
+						)}
+					</AnimatePresence>
+
+					{/* Features Section */}
+					<section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-24 mb-8">
+						<FeaturesSection />
+					</section>
+				</div>
+			</motion.div>
+		</div>
+	);
 };
 
 export default Home;
