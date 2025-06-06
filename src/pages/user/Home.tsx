@@ -38,7 +38,7 @@ const Home = () => {
         buttons: [
           {
             label: "Yes",
-            onClick: () => navigate("/payment"),
+            onClick: () => navigate("/subscription"),
           },
           {
             label: "No",

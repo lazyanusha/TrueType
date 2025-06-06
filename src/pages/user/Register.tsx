@@ -48,8 +48,14 @@ export default function RegistrationForm() {
     fetch("http://localhost:8000/plans")
       .then((res) => res.json())
       .then((data) => {
-        console.log("Plans fetched from backend:", data);
-        setPlans(data);
+        const filteredPlans = data.filter(
+          (plan: { id: number }) => plan.id !== 1
+        );
+        console.log(
+          "Plans fetched from backend (excluding id=1):",
+          filteredPlans
+        );
+        setPlans(filteredPlans);
       })
       .catch(() => {
         // Fallback plans if fetch fails
@@ -377,7 +383,7 @@ export default function RegistrationForm() {
                         </ul>
                         <button
                           onClick={() =>
-                            navigate("/payment", { state: { user: formData } })
+                            navigate("/subscription", { state: { user: formData } })
                           }
                           className="self-start mt-10 py-2 border border-[#3C5773] text-[#3C5773] py-1 px-3 rounded hover:bg-[#eee]"
                         >

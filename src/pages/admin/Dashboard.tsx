@@ -1,92 +1,11 @@
-import React, { useState, useMemo } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  Legend,
-  AreaChart,
-  Area,
-} from "recharts";
+import  { useState, useMemo } from "react";
+import { dateInRange, getDateRange } from "../../utils/daterange";
+import UserMetrics from "../../components/admin_components/usermetrics";
+import SubscriptionAnalytics from "../../components/admin_components/subscriptionmetrics";
+import FinancialMetrics from "../../components/admin_components/financialmetrics";
+import SystemUsage from "../../components/admin_components/usage";
 
-// Mock data (same as before)
-const MOCK_USERS = [
-  { id: 1, active: true, registeredAt: "2025-05-10", plan: "free" },
-  { id: 2, active: false, registeredAt: "2025-04-15", plan: "monthly" },
-  { id: 3, active: true, registeredAt: "2025-05-02", plan: "yearly" },
-  { id: 4, active: true, registeredAt: "2025-03-20", plan: "monthly" },
-  { id: 5, active: false, registeredAt: "2025-01-10", plan: "free" },
-  { id: 6, active: true, registeredAt: "2025-05-20", plan: "weekly" },
-  { id: 7, active: true, registeredAt: "2025-05-22", plan: "monthly" },
-  { id: 8, active: true, registeredAt: "2025-02-10", plan: "yearly" },
-  { id: 9, active: false, registeredAt: "2025-04-25", plan: "weekly" },
-  { id: 10, active: true, registeredAt: "2025-05-25", plan: "monthly" },
-];
-
-const MOCK_PAYMENTS = [
-  { userId: 2, status: "completed", amount: 20, plan: "monthly", date: "2025-05-01" },
-  { userId: 3, status: "completed", amount: 200, plan: "yearly", date: "2025-05-02" },
-  { userId: 4, status: "failed", amount: 20, plan: "monthly", date: "2025-05-03" },
-  { userId: 6, status: "completed", amount: 5, plan: "weekly", date: "2025-05-20" },
-  { userId: 7, status: "completed", amount: 20, plan: "monthly", date: "2025-05-22" },
-  { userId: 8, status: "completed", amount: 200, plan: "yearly", date: "2025-04-10" },
-  { userId: 10, status: "completed", amount: 20, plan: "monthly", date: "2025-05-25" },
-];
-
-const MOCK_RECORDS = [
-  { id: 1, userId: 1, createdAt: "2025-05-10" },
-  { id: 2, userId: 2, createdAt: "2025-05-12" },
-  { id: 3, userId: 3, createdAt: "2025-05-13" },
-  { id: 4, userId: 4, createdAt: "2025-05-14" },
-  { id: 5, userId: 6, createdAt: "2025-05-20" },
-  { id: 6, userId: 7, createdAt: "2025-05-22" },
-  { id: 7, userId: 10, createdAt: "2025-05-25" },
-  { id: 8, userId: 1, createdAt: "2025-05-25" },
-  { id: 9, userId: 3, createdAt: "2025-05-26" },
-];
-
-// Utils
-function getDateRange(range: string) {
-  const now = new Date();
-  switch (range) {
-    case "week":
-      return [new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), now];
-    case "month":
-      return [new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), now];
-    case "year":
-      return [new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), now];
-    case "all":
-    default:
-      return [new Date("1970-01-01"), now];
-  }
-}
-function dateInRange(dateStr: string, start: Date, end: Date) {
-  const d = new Date(dateStr);
-  return d >= start && d <= end;
-}
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
-// COLORS
-const COLORS = ["#4f46e5", "#22c55e", "#facc15", "#ef4444"];
-
-// Card component
-function StatCard({ title, value }: { title: string; value: React.ReactNode }) {
-  return (
-    <div className="bg-white shadow rounded p-4 flex flex-col items-center">
-      <p className="text-gray-500 text-sm">{title}</p>
-      <p className="text-2xl font-semibold text-[#3C5773]">{value}</p>
-    </div>
-  );
-}
+// (Keep your MOCK_USERS, MOCK_PAYMENTS, MOCK_RECORDS, utils etc. here unchanged)
 
 export default function Dashboard() {
   const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "all">("month");
@@ -148,145 +67,71 @@ export default function Dashboard() {
       .filter((p) => p.plan === plan && p.status === "completed")
       .reduce((sum, p) => sum + p.amount, 0),
   }));
-
   const paymentsCompleted = paymentsInRange.filter((p) => p.status === "completed").length;
   const paymentsFailed = paymentsInRange.filter((p) => p.status === "failed").length;
+  const ARPU = totalUsers > 0 ? totalRevenue / totalUsers : 0;
 
-  const ARPU = activeUsers === 0 ? 0 : totalRevenue / activeUsers;
+  // System usage
+  const recordsInRange = MOCK_RECORDS.filter((r) => dateInRange(r.date, startDate, endDate));
+  const totalRecords = MOCK_RECORDS.length;
+  const avgUsagePerUser =
+    totalUsers > 0 ? (MOCK_RECORDS.length / totalUsers).toFixed(2) + " records/user" : "0";
 
-  // System usage data (records uploaded)
-  const recordsInRange = MOCK_RECORDS.filter((r) => dateInRange(r.createdAt, startDate, endDate));
-  const totalRecords = recordsInRange.length;
-  const avgUsagePerUser = totalUsers === 0 ? 0 : totalRecords / totalUsers;
-
-  // Usage over time for area chart (by day)
-  const usageOverTime = useMemo(() => {
-    const usageCounts: Record<string, number> = {};
+  const usageOverTime = (() => {
+    const usageByDate: Record<string, number> = {};
     for (let d = startDate; d <= endDate; d = new Date(d.getTime() + 86400000)) {
-      usageCounts[formatDate(d)] = 0;
+      usageByDate[formatDate(d)] = 0;
     }
-    recordsInRange.forEach(({ createdAt }) => {
-      usageCounts[createdAt] = (usageCounts[createdAt] || 0) + 1;
+    MOCK_RECORDS.forEach(({ date }) => {
+      if (dateInRange(date, startDate, endDate)) {
+        usageByDate[date] = (usageByDate[date] || 0) + 1;
+      }
     });
-    return Object.entries(usageCounts)
+    return Object.entries(usageByDate)
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([date, count]) => ({ date, count }));
-  }, [recordsInRange, startDate, endDate]);
+  })();
 
   return (
-    <div className=" mx-auto">
-      {/* Date Range Selector */}
-      <div className="flex justify-end mb-6">
+    <div className="p-8">
+      <div className="mb-8">
+        <label className="mr-4 font-semibold text-[#3C5773]">Date Range:</label>
         <select
-          className="border rounded p-2"
+          className="border rounded px-2 py-1"
           value={dateRange}
           onChange={(e) => setDateRange(e.target.value as any)}
-          aria-label="Select date range"
         >
-          <option value="week">Last 7 Days</option>
-          <option value="month">Last 30 Days</option>
+          <option value="week">Last Week</option>
+          <option value="month">Last Month</option>
           <option value="year">Last Year</option>
           <option value="all">All Time</option>
         </select>
       </div>
 
-      {/* User Metrics Cards */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-[#3C5773]">User Metrics</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-6">
-          <StatCard title="Total Users" value={totalUsers} />
-          <StatCard title="Active Users" value={activeUsers} />
-          <StatCard title="Inactive Users" value={inactiveUsers} />
-          <StatCard title={`New Users (${dateRange})`} value={newUsers} />
-        </div>
+      <UserMetrics
+        totalUsers={totalUsers}
+        activeUsers={activeUsers}
+        inactiveUsers={inactiveUsers}
+        newUsers={newUsers}
+        dateRange={dateRange}
+        growthData={growthData}
+      />
 
-        <div style={{ width: "100%", height: 250 }}>
-          <ResponsiveContainer>
-            <LineChart data={growthData}>
-              <XAxis dataKey="date" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Line type="monotone" dataKey="users" stroke="#3C5773" strokeWidth={3} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      <SubscriptionAnalytics usersPerPlan={usersPerPlan} />
 
-      {/* Subscription / Plan Analytics */}
-      <section>
-        <h2 className="text-2xl mt-8 font-semibold mb-8 border-b pb-2 text-[#3C5773]">
-          Subscription / Plan Analytics
-        </h2>
-        <div className="max-w-md mx-auto" style={{ height: 300 }}>
-          <ResponsiveContainer>
-            <PieChart>
-              <Pie
-                data={usersPerPlan}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                label={({ name, percent }) =>
-                  `${name.charAt(0).toUpperCase() + name.slice(1)} ${(percent * 100).toFixed(0)}%`
-                }
-              >
-                {usersPerPlan.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      <FinancialMetrics
+        totalRevenue={totalRevenue}
+        paymentsCompleted={paymentsCompleted}
+        paymentsFailed={paymentsFailed}
+        ARPU={ARPU}
+        revenueByPlan={revenueByPlan}
+      />
 
-      {/* Financial Metrics */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-8 border-b pb-2 text-[#3C5773]">Financial Metrics</h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6 mb-6">
-          <StatCard title="Total Revenue" value={`$${totalRevenue.toFixed(2)}`} />
-          <StatCard title="Payments Completed" value={paymentsCompleted} />
-          <StatCard title="Payments Failed" value={paymentsFailed} />
-          <StatCard title="ARPU" value={`$${ARPU.toFixed(2)}`} />
-        </div>
-
-        <div style={{ width: "100%", height: 300 }}>
-          <ResponsiveContainer>
-            <BarChart data={revenueByPlan}>
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="revenue" fill="#3C5773" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* System Usage / Engagement */}
-      <section>
-        <h2 className="text-2xl font-semibold mb-4 border-b pb-2 text-[#3C5773]">
-          System Usage / Engagement
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-          <StatCard title="Total Records Uploaded" value={totalRecords} />
-          <StatCard title="Average Usage Per User" value={avgUsagePerUser.toFixed(2)} />
-        </div>
-
-        <div style={{ width: "100%", height: 250 }}>
-          <ResponsiveContainer>
-            <AreaChart data={usageOverTime}>
-              <XAxis dataKey="date" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Area type="monotone" dataKey="count" stroke="#3C5773" fill="#CBD5E1" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      <SystemUsage
+        totalRecords={totalRecords}
+        avgUsagePerUser={avgUsagePerUser}
+        usageOverTime={usageOverTime}
+      />
     </div>
   );
 }

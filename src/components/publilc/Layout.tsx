@@ -139,7 +139,7 @@ const Layout = () => {
                         Settings
                       </Link>
                       <Link
-                        to="/payment"
+                        to="/subscription"
                         onClick={() => setDropdownOpen(false)}
                         className="block px-4 py-2 text-gray-700 hover:bg-blue-600 hover:text-white"
                       >
