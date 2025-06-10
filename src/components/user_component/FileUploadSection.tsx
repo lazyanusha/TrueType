@@ -35,6 +35,7 @@ const countWords = (text: string) => {
 
 const MAX_TEXT_SUBMISSIONS = 5;
 const MAX_FILE_UPLOADS = 5;
+const MAX_UPLOADS = MAX_TEXT_SUBMISSIONS + MAX_FILE_UPLOADS
 const MAX_WORDS = 1000;
 
 const resetCountsIfNewDay = () => {
@@ -109,7 +110,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
     if (loading || nonUserExceededLimit) {
       if (nonUserExceededLimit) {
         alert(
-          `Guest upload limit reached for today (${MAX_FILE_UPLOADS} files). Please log in to upload more files.`
+          `Guest upload limit reached for today (${MAX_UPLOADS} files). Please log in to upload more files.`
         );
       }
       return;
@@ -148,7 +149,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
     if (!user) {
       if (fileUploadsCount >= MAX_FILE_UPLOADS) {
         alert(
-          `Guest upload limit reached for today (${MAX_FILE_UPLOADS} files). Please log in to upload more files.`
+          `Guest upload limit reached for today (${MAX_UPLOADS} files or texts). Please log in to upload more files.`
         );
         e.target.value = "";
         return;
@@ -156,7 +157,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 
       if (fileUploadsCount + selectedFiles.length > MAX_FILE_UPLOADS) {
         alert(
-          `Uploading these files will exceed your daily guest upload limit (${MAX_FILE_UPLOADS} files). Please log in to get unlimited access.`
+          `Uploading these files will exceed your daily guest upload limit (${MAX_UPLOADS} files or texts). Please log in to get unlimited access.`
         );
         e.target.value = "";
         return;
@@ -248,13 +249,13 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       }
       if (textSubmissionsCount >= MAX_TEXT_SUBMISSIONS) {
         alert(
-          `Guest text submission limit reached for today (${MAX_TEXT_SUBMISSIONS} submissions). Please log in to continue checking text.`
+          `Guest text submission limit reached for today (${MAX_UPLOADS} submissions or files). Please log in to continue checking text.`
         );
         return;
       }
       if (fileUploadsCount >= MAX_FILE_UPLOADS) {
         alert(
-          `Guest upload limit reached for today (${MAX_FILE_UPLOADS} files). Please log in to get unlimited access.`
+          `Guest upload limit reached for today (${MAX_UPLOADS} files or texts). Please log in to get unlimited access.`
         );
         return;
       }
@@ -425,8 +426,8 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
       {!user && (
         <div className="mt-4 text-xs text-red-500">
           <p>
-            Guest limits: Up to {MAX_TEXT_SUBMISSIONS} text submissions and{" "}
-            {MAX_FILE_UPLOADS} file uploads per day (max 1000 words per
+            Guest limits: Up to {MAX_UPLOADS} text submissions or{" "}
+             file uploads per day (max 1000 words per
             submission).
           </p>
           <p>Please log in for unlimited access and more features.</p>

@@ -9,8 +9,7 @@ import React from "react";
 
 type Resource = {
   id: number;
-  title: string;
-  content: string;
+  resource_title: string;
   authors: string[];
   file_path: string;
   file_url: string;
@@ -18,6 +17,8 @@ type Resource = {
   publication_date: string;
   doc_type: string;
   created_at: string;
+  updated_at: string;
+  content: string;
 };
 
 export default function UploadedResourcesTable() {
@@ -25,12 +26,12 @@ export default function UploadedResourcesTable() {
   const [resources, setResources] = React.useState<Resource[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
-    title: "",
+    resource_title: "",
     authors: "",
-    source_url: "",
+    file_url: "",
     publisher: "",
     publication_date: "",
-    description: "",
+    content: "",
   });
 
   useEffect(() => {
@@ -47,30 +48,30 @@ export default function UploadedResourcesTable() {
   }, []);
 
   const startEdit = (
-    res: Resource & { source_url?: string; description?: string }
+    res: Resource & { file_url?: string; content?: string }
   ) => {
     setEditingId(res.id);
     setEditForm({
-      title: res.title || "",
+      resource_title: res.resource_title || "",
       authors: res.authors?.join(", ") || "",
-      source_url: (res as any).source_url || "",
+      file_url: (res as any).file_url || "",
       publisher: res.publisher || "",
       publication_date: res.publication_date
         ? res.publication_date.split("T")[0]
         : "",
-      description: (res as any).description || "",
+      content: (res as any).content || "",
     });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditForm({
-      title: "",
+      resource_title: "",
       authors: "",
-      source_url: "",
+      file_url: "",
       publisher: "",
       publication_date: "",
-      description: "",
+      content: "",
     });
   };
 
@@ -84,12 +85,12 @@ export default function UploadedResourcesTable() {
     try {
       const token = localStorage.getItem("access_token") || "";
       const updateData = {
-        title: editForm.title,
+        resource_title: editForm.resource_title,
         authors: editForm.authors.split(",").map((a) => a.trim()),
-        source_url: editForm.source_url,
+        file_url: editForm.file_url,
         publisher: editForm.publisher,
         publication_date: editForm.publication_date,
-        description: editForm.description,
+        content: editForm.content,
       };
 
       await updateResource(id, updateData, token);
@@ -151,9 +152,9 @@ export default function UploadedResourcesTable() {
             <tbody>
               {resources.map((res) => (
                 <tr key={res.id}>
-                  <td className="px-4 py-2">{res.title}</td>
+                  <td className="px-4 py-2">{res.resource_title}</td>
                   <td className="px-4 py-2">{res.authors?.join(", ")}</td>
-                  <td className="px-4 py-2">{res.content?.slice(0, 100)}...</td>
+                  <td className="px-4 py-2">{res.content}</td>
                   <td className="px-4 py-2">
                     <a
                       href={res.file_url}
@@ -161,7 +162,7 @@ export default function UploadedResourcesTable() {
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
                     >
-                      Link
+                      {res.file_url}
                     </a>
                   </td>
                   <td className="px-4 py-2">
@@ -222,7 +223,7 @@ export default function UploadedResourcesTable() {
                   <input
                     type="text"
                     name="title"
-                    value={editForm.title}
+                    value={editForm.resource_title}
                     onChange={handleChange}
                     required
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -248,8 +249,8 @@ export default function UploadedResourcesTable() {
                   </label>
                   <input
                     type="url"
-                    name="source_url"
-                    value={editForm.source_url}
+                    name="file_url"
+                    value={editForm.file_url}
                     onChange={handleChange}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -280,19 +281,19 @@ export default function UploadedResourcesTable() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={editForm.description}
-                  onChange={handleChange}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    content
+                  </label>
+                  <textarea
+                    name="content"
+                    value={editForm.content}
+                    onChange={handleChange}
+                    rows={3}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 pt-2">

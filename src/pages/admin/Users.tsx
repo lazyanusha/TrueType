@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
 import { useAuth } from "../../utils/useAuth";
 
 interface User {
@@ -10,6 +9,7 @@ interface User {
   subscription_start: string | null;
   subscription_expiry: string | null;
   plan_name: string | null;
+  phone: string | null;
 }
 
 interface Plan {
@@ -21,9 +21,7 @@ const USERS_PER_PAGE = 20;
 
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [updatedUser, setUpdatedUser] = useState<any>({});
+  const [, setPlans] = useState<Plan[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -67,90 +65,6 @@ export default function Users() {
     }
   }, [loading, user]);
 
-  const handleEditClick = (user: User) => {
-    setEditId(user.id);
-    setUpdatedUser({ ...user });
-  };
-
-  const saveEdit = async () => {
-    try {
-      const selectedPlan = plans.find(
-        (plan) => plan.name === updatedUser.plan_name
-      );
-      const expiryDate =
-        updatedUser.subscription_expiry &&
-        updatedUser.subscription_expiry !== ""
-          ? new Date(updatedUser.subscription_expiry).toISOString()
-          : null;
-
-      const payload = {
-        full_name: updatedUser.full_name,
-        email: updatedUser.email,
-        subscription_status: updatedUser.subscription_status,
-        subscription_expiry: expiryDate,
-        plan_id: selectedPlan ? selectedPlan.id : null,
-      };
-
-      const res = await fetch(`http://localhost:8000/users/${editId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("Update failed:", errorData);
-
-        // Log missing fields more clearly
-        if (errorData.detail) {
-          errorData.detail.forEach((err: any) => {
-            console.error("Missing field:", err.loc?.[1], "|", err.msg);
-          });
-        }
-      }
-      if (res.ok) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editId
-              ? {
-                  ...u,
-                  ...payload,
-                  plan_name: selectedPlan ? selectedPlan.name : null,
-                }
-              : u
-          )
-        );
-        setEditId(null);
-      } else {
-        const errorData = await res.json();
-        console.error("Update failed:", errorData);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const cancelEdit = () => setEditId(null);
-
-  const handleDelete = async (id: number) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
-    if (!confirmed) return;
-
-    try {
-      const res = await fetch(`http://localhost:8000/users/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setUsers((prev) => prev.filter((u) => u.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const filteredUsers = users.filter(
     (user) =>
       user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,7 +81,7 @@ export default function Users() {
   if (!user || user.roles !== "admin") return <p>Unauthorized</p>;
 
   return (
-    <div className="p-4">
+    <div>
       <h1 className="text-2xl font-semibold mb-4">Manage Users</h1>
 
       <input
@@ -182,13 +96,15 @@ export default function Users() {
         <table className="min-w-full bg-white">
           <thead>
             <tr className="bg-blue-100 text-gray-700 text-left">
+              <th className="p-2">S.No</th>
               <th className="p-2">Name</th>
               <th className="p-2">Email</th>
+              <th className="px-2">Phone Number</th>
               <th className="px-6">Plan</th>
               <th className="p-2 px-6">Status</th>
-              <th className="p-2 px-8">Start</th>
-              <th className="p-2 px-8">Expiry</th>
-              <th className="pl-14">Actions</th>
+              <th className="pl-14" colSpan={3}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -199,142 +115,27 @@ export default function Users() {
                   index % 2 === 0 ? "bg-gray-50" : "bg-white"
                 } hover:bg-blue-50`}
               >
-                {editId === user.id ? (
-                  <>
-                    <td className="p-2">
-                      <input
-                        className="w-full"
-                        value={updatedUser.full_name}
-                        onChange={(e) =>
-                          setUpdatedUser({
-                            ...updatedUser,
-                            full_name: e.target.value,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input
-                        className="w-full"
-                        value={updatedUser.email}
-                        onChange={(e) =>
-                          setUpdatedUser({
-                            ...updatedUser,
-                            email: e.target.value,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="p-2 px-6">
-                      <select
-                        className="w-full px-3 py-1 rounded"
-                        value={updatedUser.plan_name || ""}
-                        onChange={(e) =>
-                          setUpdatedUser({
-                            ...updatedUser,
-                            plan_name: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">None</option>
-                        {plans.map((plan) => (
-                          <option key={plan.id} value={plan.name}>
-                            {plan.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="p-2 px-6">
-                      <select
-                        className="w-full px-3 py-1 rounded "
-                        value={updatedUser.subscription_status}
-                        onChange={(e) =>
-                          setUpdatedUser({
-                            ...updatedUser,
-                            subscription_status: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="inactive">Inactive</option>
-                        <option value="active">Active</option>
-                        <option value="expired">Expired</option>
-                        <option value="none">None</option>
-                      </select>
-                    </td>
-                    <td className="p-2 px-8">
-                      {updatedUser.subscription_start
-                        ? format(
-                            new Date(updatedUser.subscription_start),
-                            "yyyy-MM-dd"
-                          )
-                        : "-"}
-                    </td>
-                    <td className="p-2 px-8">
-                      <input
-                        type="date"
-                        className="w-full px-3 py-1 rounded"
-                        value={updatedUser.subscription_expiry || ""}
-                        onChange={(e) =>
-                          setUpdatedUser({
-                            ...updatedUser,
-                            subscription_expiry: e.target.value,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="p-2">
-                      <button
-                        onClick={saveEdit}
-                        className="text-blue-500 pr-6 py-1 rounded"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={cancelEdit}
-                        className="text-gray-600 pl-8 py-1 rounded"
-                      >
-                        Cancel
-                      </button>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="p-2">{user.full_name}</td>
-                    <td className="p-2">{user.email}</td>
-                    <td className="px-6">{user.plan_name || "None"}</td>
-                    <td className="p-2 px-6">{user.subscription_status}</td>
-                    <td className="p-2 px-8">
-                      {user.subscription_start
-                        ? format(
-                            new Date(user.subscription_start),
-                            "yyyy-MM-dd"
-                          )
-                        : "-"}
-                    </td>
-                    <td className="p-2 px-8">
-                      {user.subscription_expiry
-                        ? format(
-                            new Date(user.subscription_expiry),
-                            "yyyy-MM-dd"
-                          )
-                        : "-"}
-                    </td>
-                    <td className="p-2 space-x-2">
-                      <button
-                        onClick={() => handleEditClick(user)}
-                        className="text-green-500 pr-6 py-1 rounded"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user.id)}
-                        className="text-red-500 py-1 pl-8 rounded"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </>
-                )}
+                <td className="px-3 py-2 text-center">
+                  {(currentPage - 1) * USERS_PER_PAGE + index + 1}
+                </td>
+                <td className="p-2">{user.full_name}</td>
+                <td className="p-2">{user.email}</td>
+                <td className="p-2">{user.phone}</td>
+                <td className="px-6">{user.plan_name || "None"}</td>
+                <td className="p-2 px-6">
+                  {user.subscription_status
+                    ? user.subscription_status.charAt(0).toUpperCase() +
+                      user.subscription_status.slice(1)
+                    : "-"}
+                </td>
+                <td className="p-2 text-center" colSpan={3}>
+                  <a
+                    href={`users/${user.id}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    View
+                  </a>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -10,6 +10,8 @@ import {
 } from "../../components/user_component/Tabs";
 import AccountTab from "../../components/tabs/users/AccountTab";
 import { useAuth } from "../../utils/useAuth";
+import SubscriptionTab from "../../components/tabs/users/SubscriptionTab";
+import NotificationsTab from "../../components/tabs/users/NotificationTab";
 
 const UserSettingsPage = () => {
   const { user } = useAuth(); // contains id, roles, etc.
@@ -29,7 +31,7 @@ const UserSettingsPage = () => {
         const token =
           localStorage.getItem("access_token") ||
           sessionStorage.getItem("access_token");
-        const res = await fetch(`http://localhost:8000/users/${user.id}`, {
+        const res = await fetch(`http://localhost:8000/users/me`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -54,25 +56,51 @@ const UserSettingsPage = () => {
   }, [user]);
 
   return (
-    <div className="max-w-7xl  mx-auto px-4 py-10">
+    <div className="relative max-w-7xl mx-auto px-4 py-10">
       <Snowing />
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1 }}
-        className="w-full shadow-xl min-h-[600px] rounded-xl p-8 md:p-10 bg-white"
+        className="w-full shadow-2xl rounded-2xl p-8 md:p-12 bg-white border border-gray-100"
       >
-        <h1 className="text-3xl font-semibold mb-6">User Settings</h1>
+        <h1 className="text-4xl font-bold mb-8 text-gray-800">User Settings</h1>
+
         <Tabs defaultValue="account">
-          <TabsList className="grid grid-cols-1 w-full mb-6 gap-2">
-            <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsList className="grid grid-cols-4 w-full mb-8 gap-4">
+            <TabsTrigger
+              value="account"
+              className="py-3 text-lg font-medium rounded-xl shadow-md bg-gray-50 hover:bg-gray-100 transition-all"
+            >
+              Account
+            </TabsTrigger>
+            <TabsTrigger
+              value="subscription"
+              className="py-3 text-lg font-medium rounded-xl shadow-md bg-gray-50 hover:bg-gray-100 transition-all"
+            >
+              Subscription
+            </TabsTrigger>
+            <TabsTrigger
+              value="notifications"
+              className="py-3 text-lg font-medium rounded-xl shadow-md bg-gray-50 hover:bg-gray-100 transition-all"
+            >
+              Notifications
+            </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="account">
+          <TabsContent value="account" className="mt-6">
             <AccountTab
               userData={userData}
               setUserData={setUserData}
               userId={user?.id ?? 0}
+            />
+          </TabsContent>
+
+          <TabsContent value="subscription" className="mt-6">
+            <SubscriptionTab />
+          </TabsContent>
+          <TabsContent value="notifications">
+            <NotificationsTab
             />
           </TabsContent>
         </Tabs>

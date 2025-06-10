@@ -16,8 +16,8 @@ import Features from "./pages/user/Features";
 import HowItWorks from "./pages/user/HowItWorks";
 import Resources from "./pages/admin/Resources";
 import SubscriptionPage from "./pages/user/Subscription";
-import PaymentStatus from "./pages/user/paymentstatus";
-import KhaltiPageWrapper from "./components/user_component/KhaltiPageWrapper";
+import PaymentStatus from "./pages/user/payment-status";
+import UserDetails from "./components/admin_components/UserDetails";
 
 function App() {
   useEffect(() => {
@@ -38,13 +38,13 @@ function App() {
           <Route path="subscription" element={<SubscriptionPage />} />
           <Route path="usersetting" element={<UserSettingsPage />} />
           <Route path="payment-status" element={<PaymentStatus />} />
-          <Route path="/payment" element={<KhaltiPageWrapper />} />{" "}
         </Route>
 
         {/* Admin routes */}
         <Route path="/admin" element={<Sidebar />}>
           <Route path="/admin" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="users/:id" element={<UserDetails />} />
           <Route path="payments" element={<Payments />} />
           <Route path="resources" element={<Resources />} />
           <Route path="settings" element={<AdminSettings />} />

@@ -1,12 +1,36 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../../utils/useAuth";
 
 export default function Sidebar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user, loading , setUser} = useAuth();
-
+  const { user, loading, setUser } = useAuth();
   const navigate = useNavigate();
+
+  // Ref for dropdown container
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown if click is outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    }
+
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   if (loading) {
     return (
@@ -42,7 +66,6 @@ export default function Sidebar() {
       });
 
       if (res.ok) {
-        // Remove tokens with correct keys
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         localStorage.removeItem("user");
@@ -51,9 +74,7 @@ export default function Sidebar() {
         sessionStorage.removeItem("refresh_token");
         sessionStorage.removeItem("user");
 
-        // Clear user from context to update UI
         setUser(null);
-
         navigate("/");
       } else {
         const error = await res.json();
@@ -105,7 +126,7 @@ export default function Sidebar() {
             Administration Console
           </h1>
 
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 focus:outline-none"
@@ -127,16 +148,18 @@ export default function Sidebar() {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 py-2 bg-white border rounded-md shadow-md z-50">
+              <div
+                className="absolute right-0 mt-2 w-40 py-2 bg-white border rounded-md shadow-md z-50"
+              >
                 <Link
                   to="/admin/settings"
-                  className="block px-4 py-2 w-full text-center text-sm text-gray-700 hover:bg-gray-100"
+                  className="block px-4 py-2 w-full text-center text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                 >
                   Settings
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="block px-4 py-2 w-full text-sm text-gray-700 hover:bg-gray-100"
+                  className="block px-4 py-2 w-full text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
                 >
                   Logout
                 </button>

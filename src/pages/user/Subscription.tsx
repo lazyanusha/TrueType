@@ -72,25 +72,55 @@ export default function SubscriptionPage() {
     }
   }, [location.state]);
 
-  const handleSelectPlan = (plan: Plan) => {
+  const handleSelectPlan = async (plan: Plan) => {
     if (!user) {
       setSelectedPlan(plan);
       setShowModal(true);
       return;
     }
 
-    navigate("/payment", {
-      state: {
-        user: {
-          id: user.id,
-          name: user.full_name,
+    try {
+      const token =
+        localStorage.getItem("access_token") ||
+        sessionStorage.getItem("access_token");
+
+      if (!token) {
+        alert("Authentication token missing.");
+        return;
+      }
+
+      const response = await fetch("http://localhost:8000/payments/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount: plan.price_rs * 100, // Khalti uses paisa
+          user_id: user.id,
+          plan_id: plan.id,
+          plan_name: plan.name,
+          full_name: user.full_name,
           email: user.email,
           phone: user.phone || "",
-        },
-        planName: plan.name,
-        amount: plan.price_rs,
-      },
-    });
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to initiate payment");
+
+      const data = await response.json();
+
+      if (data.payment_url) {
+        // Redirect to Khalti payment gateway
+        window.location.href = data.payment_url;
+      } else {
+        // Mock success fallback
+        setPaymentCompleted(true);
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("Error initiating payment. Please try again.");
+    }
   };
 
   const staticFeatures: Record<string, string[]> = {
@@ -181,9 +211,9 @@ export default function SubscriptionPage() {
                   }`}
               >
                 Choose Plan
-              </button>{" "}
+              </button>
               {plan.name === "Basic" && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 mt-2 text-center">
                   Basic plan is free and active by default.
                 </p>
               )}

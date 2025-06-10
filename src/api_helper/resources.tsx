@@ -2,11 +2,15 @@ const API_BASE = "http://localhost:8000/resources";
 
 // Fetch all uploaded resources
 export async function fetchResources(token: string) {
-  const res = await fetch(`${API_BASE}`, {
+  const res = await fetch(`${API_BASE}/all`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error("Failed to fetch resources");
-  return res.json();
+  const data = await res.json();
+  return data.map((resource: { authors: any; }) => ({
+    ...resource,
+    authors: resource.authors || [],
+  }));
 }
 
 // Upload a new resource (including file, title, authors, description, and source_url)
@@ -14,7 +18,8 @@ export async function uploadResource(formData: FormData, token: string) {
   const res = await fetch(`${API_BASE}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}` // Don't set Content-Type; FormData handles it
+      Authorization: `Bearer ${token}`, // Don't set Content-Type; FormData handles it
+      "Content-Type": "multipart/form-data",
     },
     body: formData,
   });
@@ -26,10 +31,10 @@ export async function uploadResource(formData: FormData, token: string) {
 export async function updateResource(
   id: number,
   data: {
-    title: string;
-    description: string;
+    resource_title: string;
     authors: string[];
-    source_url: string;
+    file_url: string;
+    content: string;
   },
   token: string
 ) {
@@ -39,7 +44,10 @@ export async function updateResource(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      authors: data.authors || [],
+    }),
   });
   if (!res.ok) throw new Error("Failed to update resource");
   return res.json();
