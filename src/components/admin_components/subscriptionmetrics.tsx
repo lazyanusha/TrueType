@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { authFetch } from "../../utils/authfetch";
 
 const COLORS = ["#4f46e5", "#22c55e", "#facc15"];
 
@@ -20,7 +21,7 @@ export default function SubscriptionAnalytics() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch("http://localhost:8000/financial/metrics/subscription", {
+        const res = await authFetch("http://localhost:8000/financial/metrics/subscription", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();

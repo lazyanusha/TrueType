@@ -12,6 +12,7 @@ import {
   Legend,
 } from "recharts";
 import { StatCard } from "../publilc/statscard";
+import { authFetch } from "../../utils/authfetch";
 
 const COLORS = ["#3C5773", "#557A95", "#8196AB", "#A7B8C7"];
 
@@ -38,7 +39,7 @@ export default function FinancialMetrics() {
     const fetchMetrics = async () => {
       try {
         setLoading(true);
-        const resFinancial = await fetch(
+        const resFinancial = await authFetch(
           "http://localhost:8000/financial/metrics",
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -117,7 +118,7 @@ export default function FinancialMetrics() {
                 height={60}
               />
               <YAxis
-                tickFormatter={formatCurrency}
+                tickFormatter={(value) => `Rs ${(value / 100).toFixed(2)}`}
                 tick={{ fontSize: 14, fill: "#333" }}
                 width={100}
               />
@@ -142,7 +143,7 @@ export default function FinancialMetrics() {
                 cy="50%"
                 outerRadius={120}
                 fill="#557A95"
-                label
+                label={({ name, value }) => `${name}: Rs ${(value / 100).toFixed(2)}`}
               >
                 {revenueByPlan.map((_entry, index) => (
                   <Cell
