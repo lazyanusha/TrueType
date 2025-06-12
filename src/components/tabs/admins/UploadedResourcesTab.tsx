@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useResourceApi } from "../../../api_helper/resources";
 import { useAuth } from "../../../utils/useAuth";
-import React from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import EditResourceModal from "../../admin_components/useruploadmodal";
 
 type Resource = {
   id: number;
@@ -20,17 +20,12 @@ type Resource = {
 
 export default function UploadedResourcesTable() {
   const { user } = useAuth();
-  const [resources, setResources] = React.useState<Resource[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const { fetchResources, updateResource, deleteResource } = useResourceApi();
-  const [editForm, setEditForm] = useState({
-    title: "",
-    authors: "",
-    file_url: "",
-    publisher: "",
-    publication_date: "",
-    content: "",
-  });
+  const [resources, setResources] = useState<Resource[]>([]);
+  const { fetchResources, deleteResource } = useResourceApi();
+  const [editingResourceId, setEditingResourceId] = useState<number | null>(
+    null
+  );
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -59,87 +54,17 @@ export default function UploadedResourcesTable() {
     }
   }, [message]);
 
-  const startEdit = (res: Resource) => {
-    setEditingId(res.id);
-    setEditForm({
-      title: res.title || "",
-      authors: res.authors?.map((a) => a.name).join(", ") || "",
-      file_url: res.file_url || "",
-      publisher: res.publisher || "",
-      publication_date: res.publication_date?.split("T")[0] || "",
-      content: res.content || "",
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditForm({
-      title: "",
-      authors: "",
-      file_url: "",
-      publisher: "",
-      publication_date: "",
-      content: "",
-    });
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setEditForm({ ...editForm, [e.target.name]: e.target.value });
-  };
-
-  const saveEdit = async (id: number) => {
-    try {
-      const updateData = {
-        title: editForm.title,
-        authors: editForm.authors.split(",").map((a) => ({ name: a.trim() })),
-        file_url: editForm.file_url,
-        publisher: editForm.publisher,
-        publication_date: editForm.publication_date,
-        content: editForm.content,
-      };
-
-      await updateResource(id, {
-        title: updateData.title,
-        authors: updateData.authors,
-        file_url: updateData.file_url,
-        content: updateData.content,
-      });
-
-      // ✅ Update the resource in local state
-      setResources((prevResources) =>
-        prevResources.map((res) =>
-          res.id === id
-            ? {
-                ...res,
-                title: updateData.title,
-                authors: updateData.authors,
-                file_url: updateData.file_url,
-                content: updateData.content,
-                updated_at: new Date().toISOString(),
-              }
-            : res
-        )
-      );
-
-      setEditingId(null);
-      setMessage("Resource updated successfully.");
-    } catch {
-      setMessage("Failed to update resource.");
-    }
-  };
+  // Removed startEdit, cancelEdit, handleChange, saveEdit functions
 
   const handleDelete = async (id: number) => {
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this resource?"
     );
-
     if (!confirmDelete) return;
 
     try {
       await deleteResource(id);
-      const updated = await fetchResources(); // Re-fetch from server
+      const updated = await fetchResources();
       setResources(updated);
       setMessage("Resource deleted successfully.");
     } catch {
@@ -277,12 +202,13 @@ export default function UploadedResourcesTable() {
                   </td>
                   <td className="px-4 py-2 flex flex-row space-x-6">
                     <button
-                      onClick={() => startEdit(res)}
+                      onClick={() => setEditingResourceId(res.id)}
                       title="Edit Resource"
                       className="text-blue-600 hover:text-blue-800"
                     >
                       <Pencil size={18} />
                     </button>
+
                     <button
                       onClick={() => handleDelete(res.id)}
                       title="Delete Resource"
@@ -314,96 +240,6 @@ export default function UploadedResourcesTable() {
                 {idx + 1}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* Edit form modal */}
-      {editingId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative">
-            <h3 className="text-lg font-semibold mb-4">Edit Resource</h3>
-
-            <label className="block mb-2 font-medium text-gray-700">
-              Title
-              <input
-                type="text"
-                name="title"
-                value={editForm.title}
-                onChange={handleChange}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-
-            <label className="block mb-2 font-medium text-gray-700">
-              Authors (comma separated)
-              <input
-                type="text"
-                name="authors"
-                value={editForm.authors}
-                onChange={handleChange}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-
-            <label className="block mb-2 font-medium text-gray-700">
-              Source URL
-              <input
-                type="text"
-                name="file_url"
-                value={editForm.file_url}
-                onChange={handleChange}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-
-            <label className="block mb-2 font-medium text-gray-700">
-              Publisher
-              <input
-                type="text"
-                name="publisher"
-                value={editForm.publisher}
-                onChange={handleChange}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-
-            <label className="block mb-2 font-medium text-gray-700">
-              Publication Date
-              <input
-                type="date"
-                name="publication_date"
-                value={editForm.publication_date}
-                onChange={handleChange}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </label>
-
-            <label className="block mb-4 font-medium text-gray-700">
-              Content
-              <textarea
-                name="content"
-                value={editForm.content}
-                onChange={handleChange}
-                rows={5}
-                className="mt-1 block w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-              />
-            </label>
-
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={cancelEdit}
-                className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => saveEdit(editingId)}
-                className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
-              >
-                Save
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -456,6 +292,24 @@ export default function UploadedResourcesTable() {
             </button>
           </div>
         </div>
+      )}
+
+      {editingResourceId !== null && (
+        <EditResourceModal
+          resourceId={editingResourceId}
+          onClose={() => setEditingResourceId(null)}
+          onSuccess={async () => {
+            setEditingResourceId(null);
+            // Refresh resources after successful edit:
+            try {
+              const data = await fetchResources();
+              setResources(data);
+              setMessage("Resource updated successfully.");
+            } catch {
+              setMessage("Failed to refresh resources.");
+            }
+          }}
+        />
       )}
     </div>
   );

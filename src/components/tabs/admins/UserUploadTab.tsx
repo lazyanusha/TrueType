@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../utils/useAuth";
 import { useResourceApi } from "../../../api_helper/resources";
 
@@ -12,6 +12,7 @@ type Author = {
 export default function UploadResourceForm() {
   const { user } = useAuth();
   const { uploadResource } = useResourceApi();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Resource fields
   const [title, setTitle] = useState("");
@@ -96,6 +97,10 @@ export default function UploadResourceForm() {
       setFileUrl("");
       setFile(null);
       setAuthors([{ name: "", degree: "", affiliation: "", title: "" }]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch {
       setMessage("Failed to upload resource.");
     }
@@ -163,12 +168,11 @@ export default function UploadResourceForm() {
 
       <div>
         <label className="block text-gray-700 font-semibold mb-1">
-          Publication Date{" "}
-          <span className="text-gray-500">(YYYY-MM-DD)</span>
+          Publication Date <span className="text-gray-500">(YYYY-MM-DD)</span>
         </label>
         <input
           type="text"
-          placeholder="2023 or 2023-05-10"
+          placeholder="2023-05-10"
           className="w-full border-b border-gray-300 focus:border-blue-600 outline-none py-1 text-gray-900"
           value={publicationDate}
           onChange={(e) => setPublicationDate(e.target.value)}
@@ -197,7 +201,10 @@ export default function UploadResourceForm() {
           Authors
         </label>
         {authors.map((author, i) => (
-          <div key={i} className="mb-4 border border-gray-200 py-3 px-4 rounded bg-gray-50 relative">
+          <div
+            key={i}
+            className="mb-4 border border-gray-200 py-3 px-4 rounded bg-gray-50 relative"
+          >
             <div className="mb-2">
               <label className="block text-gray-600 mb-1">Name *</label>
               <input
@@ -285,6 +292,7 @@ export default function UploadResourceForm() {
           type="file"
           className="w-full text-gray-700"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
+          ref={fileInputRef}
         />
       </div>
 
