@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authFetch } from "../../../utils/authfetch";
 
 interface Plan {
   id: number;
@@ -27,31 +28,40 @@ const calculateRemainingDays = (expiry: string) => {
   return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 };
 
-type SubscriptionStatus = "Active" | "Cancelled (Active)" | "Expired";
-
-function getSubscriptionStatus(payment: Payment): {
-  status: SubscriptionStatus;
-  color: string;
-} {
-  const now = new Date();
-  const expiry = new Date(payment.expiry_date);
-  const isActive = expiry >= now;
-  const isCancelled = payment.status === "cancelled";
-
-  let status: SubscriptionStatus = "Expired";
-  if (isActive) {
-    status = isCancelled ? "Cancelled (Active)" : "Active";
+const statusColor = (status: string) => {
+  switch (status) {
+    case "currently active":
+      return "text-green-600";
+    case "cancelled (active)":
+      return "text-yellow-600";
+    case "expired":
+      return "text-red-600";
+    case "upcoming":
+      return "text-blue-600";
+    default:
+      return "";
   }
+};
 
-  const color =
-    status === "Active"
-      ? "text-green-600"
-      : status === "Cancelled (Active)"
-      ? "text-yellow-600"
-      : "text-red-600";
+const getSubscriptionStatus = (
+  startDate: string,
+  expiryDate: string,
+  isCancelled: boolean
+): string => {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = new Date(expiryDate);
 
-  return { status, color };
-}
+  if (isCancelled && now >= start && now <= end) {
+    return "cancelled (active)";
+  } else if (now < start) {
+    return "upcoming";
+  } else if (now >= start && now <= end) {
+    return "currently active";
+  } else {
+    return "expired";
+  }
+};
 
 const SubscriptionTab = () => {
   const navigate = useNavigate();
@@ -60,34 +70,18 @@ const SubscriptionTab = () => {
   const [error, setError] = useState<string | null>(null);
   const [showBilling, setShowBilling] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [filter, setFilter] = useState<"All" | SubscriptionStatus>("All");
 
   const fetchPayments = () => {
     setLoading(true);
     setError(null);
-    const token =
-      localStorage.getItem("access_token") ||
-      sessionStorage.getItem("access_token");
-
-    fetch(`http://localhost:8000/subscriptions/user`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    authFetch(`http://localhost:8000/subscriptions/user`, {
+      
     })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch payments");
         const data = await res.json();
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid response format");
-        }
-        const filtered = data.filter(
-          (p) => p.id != null && p.plan?.id != null
-        );
-        if (filtered.length < data.length) {
-          console.warn(
-            "Some payments were ignored due to missing id or plan.id fields"
-          );
-        }
+        if (!Array.isArray(data)) throw new Error("Invalid response format");
+        const filtered = data.filter((p) => p.id && p.plan?.id);
         setPayments(filtered);
       })
       .catch((err) => setError(err.message))
@@ -99,31 +93,24 @@ const SubscriptionTab = () => {
   }, []);
 
   const cancelSubscription = async (paymentId: number) => {
-    if (!window.confirm("Are you sure you want to cancel this subscription?")) {
+    if (!window.confirm("Are you sure you want to cancel this subscription?"))
       return;
-    }
     setActionLoading(true);
     try {
-      const token =
-        localStorage.getItem("access_token") ||
-        sessionStorage.getItem("access_token");
-      const res = await fetch(
+      const res = await authFetch(
         `http://localhost:8000/payments/cancel/${paymentId}`,
         {
           method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
         }
       );
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         alert(data.detail || "Failed to cancel subscription");
         return;
       }
       alert("Subscription cancelled successfully");
       fetchPayments();
-    } catch (err) {
+    } catch {
       alert("Error cancelling subscription");
     } finally {
       setActionLoading(false);
@@ -135,44 +122,39 @@ const SubscriptionTab = () => {
   if (payments.length === 0)
     return <p>No subscription plans found for this user.</p>;
 
+  // Sort payments by start date (ascending)
   const sortedPayments = [...payments].sort(
-    (a, b) =>
-      new Date(b.expiry_date).getTime() - new Date(a.expiry_date).getTime()
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  const latest = sortedPayments[0];
+  const now = new Date();
 
-  if (!latest?.id || !latest.plan?.id) {
-    return <p className="text-red-500">Invalid subscription data received.</p>;
-  }
+  // Find the first valid active or upcoming subscription (not cancelled and not expired)
+  const current = sortedPayments.find((p) => {
+    const start = new Date(p.date);
+    const end = new Date(p.expiry_date);
+    return (!p.deleted_at && p.status !== "cancelled" && now <= end) ||
+      (p.deleted_at && now >= start && now <= end);
+  }) || sortedPayments[0]; // fallback to first
 
-  const { status: currentStatus, color: statusColor } =
-    getSubscriptionStatus(latest);
+  const currentStatus = getSubscriptionStatus(
+    current.date,
+    current.expiry_date,
+    current.status === "cancelled" || Boolean(current.deleted_at)
+  );
 
-  const filteredPayments =
-    filter === "All"
-      ? sortedPayments
-      : sortedPayments.filter((p) => getSubscriptionStatus(p).status === filter);
+  const currentStatusColor = statusColor(currentStatus);
 
   return (
     <div className="space-y-4 mt-8">
       <p>
-        Plan: <strong>{latest.plan.name}</strong>
+        Plan: <strong>{current.plan.name}</strong>
       </p>
       <p>
-        <span
-          className={statusColor}
-          title={
-            currentStatus === "Cancelled (Active)"
-              ? "This subscription was cancelled but is still valid until expiry."
-              : ""
-          }
-        >
-          {currentStatus}
-        </span>{" "}
-        {currentStatus !== "Expired" && (
+        <span className={currentStatusColor}>{currentStatus}</span>{" "}
+        {currentStatus !== "expired" && (
           <span className="ml-2 text-sm text-gray-600">
-            ({calculateRemainingDays(latest.expiry_date)} days remaining)
+            ({calculateRemainingDays(current.expiry_date)} days remaining)
           </span>
         )}
       </p>
@@ -193,7 +175,6 @@ const SubscriptionTab = () => {
       {showBilling && (
         <div className="fixed inset-0 bg-[#3C5773] bg-opacity-50 flex items-center justify-center z-50">
           <div className="relative bg-white min-h-[90vh] p-6 rounded-xl max-w-4xl w-full shadow-lg overflow-auto">
-            {/* Close Button */}
             <button
               className="absolute top-3 right-4 text-2xl text-gray-600 hover:text-black"
               onClick={() => setShowBilling(false)}
@@ -206,53 +187,44 @@ const SubscriptionTab = () => {
 
             <div className="flex flex-col gap-4 p-4 mb-4 rounded bg-gray-50 shadow-md">
               <p>
-                <strong>Active Plan:</strong> {latest.plan.name}
+                <strong>Active Plan:</strong> {current.plan.name}
               </p>
               <p>
-                <strong>Amount:</strong> Rs. {latest.plan.price_rs}
+                <strong>Amount:</strong> Rs. {current.plan.price_rs}
               </p>
               <p>
-                <strong>Start:</strong> {formatDate(latest.date)}
+                <strong>Start:</strong> {formatDate(current.date)}
               </p>
               <p>
-                <strong>Expires:</strong> {formatDate(latest.expiry_date)}
+                <strong>Expires:</strong> {formatDate(current.expiry_date)}
               </p>
               <p>
                 <strong>Status:</strong>{" "}
-                <span className={statusColor}>{currentStatus}</span>{" "}
-                {currentStatus !== "Expired" && (
+                <span className={currentStatusColor}>{currentStatus}</span>{" "}
+                {currentStatus !== "expired" && (
                   <span className="ml-2 text-sm text-gray-600">
-                    ({calculateRemainingDays(latest.expiry_date)} days remaining)
+                    ({calculateRemainingDays(current.expiry_date)} days
+                    remaining)
                   </span>
                 )}
               </p>
-              {latest.status !== "cancelled" && currentStatus === "Active" && (
-                <div className="mt-2 space-x-2">
-                  <button
-                    disabled={actionLoading}
-                    onClick={() => cancelSubscription(latest.id)}
-                    className="px-4 py-2 border border-[#3C5773] text-[#3C5773] rounded hover:bg-[#efefef]"
-                  >
-                    {actionLoading ? "Processing..." : "Cancel Subscription"}
-                  </button>
-                </div>
-              )}
+              {current.status !== "cancelled" &&
+                !current.deleted_at &&
+                currentStatus === "currently active" && (
+                  <div className="mt-2 space-x-2">
+                    <button
+                      disabled={actionLoading}
+                      onClick={() => cancelSubscription(current.id)}
+                      className="px-4 py-2 border border-[#3C5773] text-[#3C5773] rounded hover:bg-[#efefef]"
+                    >
+                      {actionLoading ? "Processing..." : "Cancel Subscription"}
+                    </button>
+                  </div>
+                )}
             </div>
 
-            <div className="flex justify-between items-center mb-2">
+            <div className="mb-4">
               <h3 className="text-lg font-semibold">Billing History</h3>
-              <select
-                value={filter}
-                onChange={(e) =>
-                  setFilter(e.target.value as "All" | SubscriptionStatus)
-                }
-                className="px-2 py-1 border rounded text-sm"
-              >
-                <option value="All">All</option>
-                <option value="Active">Active</option>
-                <option value="Cancelled (Active)">Cancelled (Active)</option>
-                <option value="Expired">Expired</option>
-              </select>
             </div>
 
             <div className="overflow-x-auto">
@@ -260,31 +232,37 @@ const SubscriptionTab = () => {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="p-3 font-semibold text-gray-700">Plan</th>
-                    <th className="p-3 font-semibold text-gray-700">Date</th>
+                    <th className="p-3 font-semibold text-gray-700">Start</th>
                     <th className="p-3 font-semibold text-gray-700">Amount</th>
                     <th className="p-3 font-semibold text-gray-700">Status</th>
-                    <th className="p-3 font-semibold text-gray-700">Valid Until</th>
-                    <th className="p-3 font-semibold text-gray-700">Remaining</th>
+                    <th className="p-3 font-semibold text-gray-700">
+                      Valid Until
+                    </th>
+                    <th className="p-3 font-semibold text-gray-700">
+                      Remaining
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPayments.map((p, idx) => {
-                    if (!p?.id || !p.plan?.id) return null;
-
-                    const { status: rowStatus, color: rowColor } =
-                      getSubscriptionStatus(p);
-                    const remaining = calculateRemainingDays(p.expiry_date);
+                  {sortedPayments.map((p) => {
+                    const rowStatus = getSubscriptionStatus(
+                      p.date,
+                      p.expiry_date,
+                      p.status === "cancelled" || Boolean(p.deleted_at)
+                    );
+                    const rowColor = statusColor(rowStatus);
                     return (
-                      <tr
-                        key={p.id}
-                        className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                      >
+                      <tr key={p.id} className="border-t">
                         <td className="p-3">{p.plan.name}</td>
                         <td className="p-3">{formatDate(p.date)}</td>
                         <td className="p-3">Rs. {p.plan.price_rs}</td>
-                        <td className={`p-3 ${rowColor}`}>{rowStatus}</td>
+                        <td className={`p-3 font-medium ${rowColor}`}>
+                          {rowStatus}
+                        </td>
                         <td className="p-3">{formatDate(p.expiry_date)}</td>
-                        <td className="p-3">{remaining} days</td>
+                        <td className="p-3">
+                          {calculateRemainingDays(p.expiry_date)} days
+                        </td>
                       </tr>
                     );
                   })}

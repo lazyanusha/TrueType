@@ -6,10 +6,12 @@ import { AuthContext } from "../../auth/auth_context";
 const Layout = () => {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, setUser } = useContext(AuthContext);
 
+  // Close dropdown if clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -22,6 +24,42 @@ const Layout = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch unread notifications count (replace URL with your actual endpoint)
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    try {
+      const token =
+        localStorage.getItem("access_token") ||
+        sessionStorage.getItem("access_token");
+      if (!token) return;
+
+      const res = await fetch(
+        "http://localhost:8000/notifications/unread_count",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unread_count ?? 0);
+      } else {
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error("Failed to fetch unread notifications count:", error);
+      setUnreadCount(0);
+    }
+  };
+
+  // Poll unread count every 60 seconds
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogout = async () => {
     const confirmed = window.confirm("Are you sure you want to log out?");
@@ -45,7 +83,6 @@ const Layout = () => {
       });
 
       if (res.ok) {
-        // Remove tokens with correct keys
         localStorage.removeItem("access_token");
         localStorage.removeItem("refresh_token");
         localStorage.removeItem("user");
@@ -54,9 +91,7 @@ const Layout = () => {
         sessionStorage.removeItem("refresh_token");
         sessionStorage.removeItem("user");
 
-        // Clear user from context to update UI
         setUser(null);
-
         navigate("/");
       } else {
         const error = await res.json();
@@ -106,7 +141,40 @@ const Layout = () => {
             {/* Right - Auth links or user dropdown */}
             <div className="hidden md:flex space-x-8 text-lg font-medium relative">
               {user && user.roles?.toLowerCase() !== "admin" ? (
-                <div ref={dropdownRef} className="relative">
+                <div
+                  ref={dropdownRef}
+                  className="relative flex items-center space-x-4"
+                >
+                  {/* Notification bell */}
+                  <Link
+                    to="/notifications"
+                    title="Notifications"
+                    className="relative text-gray-700 hover:text-blue-600"
+                    onClick={() => setDropdownOpen(false)} // close dropdown if open
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                      />
+                    </svg>
+
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* User email and dropdown toggle */}
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center space-x-2 text-gray-700 hover:text-blue-600 focus:outline-none"
@@ -129,8 +197,9 @@ const Layout = () => {
                     </svg>
                   </button>
 
+                  {/* Dropdown menu */}
                   {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-md z-50">
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-gray-200 rounded shadow-md z-10">
                       <Link
                         to="/usersetting"
                         onClick={() => setDropdownOpen(false)}

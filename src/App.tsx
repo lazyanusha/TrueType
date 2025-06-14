@@ -18,6 +18,7 @@ import Resources from "./pages/admin/Resources";
 import SubscriptionPage from "./pages/user/Subscription";
 import PaymentStatus from "./pages/user/payment-status";
 import UserDetails from "./components/admin_components/UserDetails";
+import NotificationTab from "./components/tabs/users/NotificationTab";
 
 function App() {
   useEffect(() => {
@@ -38,6 +39,7 @@ function App() {
           <Route path="subscription" element={<SubscriptionPage />} />
           <Route path="usersetting" element={<UserSettingsPage />} />
           <Route path="payment-status" element={<PaymentStatus />} />
+          <Route path="notifications" element= {<NotificationTab />} />
         </Route>
 
         {/* Admin routes */}

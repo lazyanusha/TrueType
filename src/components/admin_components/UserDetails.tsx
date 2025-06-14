@@ -2,11 +2,31 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
+export const getSubscriptionStatus = (
+  startDate: string,
+  expiryDate: string,
+  isCancelled: boolean
+): string => {
+  const now = new Date();
+  const start = new Date(startDate);
+  const end = new Date(expiryDate);
+
+  if (isCancelled && now >= start && now <= end) {
+    return "cancelled (active)";
+  } else if (now < start) {
+    return "upcoming";
+  } else if (now >= start && now <= end) {
+    return "currently active";
+  } else {
+    return "expired";
+  }
+};
+
 interface Subscription {
   plan_name: string;
   start_date: string;
   expiry_date: string;
-  status: string; 
+  status: string;
 }
 
 interface User {
@@ -189,19 +209,33 @@ const UserDetails = () => {
             {user.subscriptions.map((sub, i) => {
               const start = new Date(sub.start_date);
               const end = new Date(sub.expiry_date);
+              const now = new Date();
 
-              // Color classes based on backend-provided status
+              const displayStatus = getSubscriptionStatus(
+                sub.start_date,
+                sub.expiry_date,
+                sub.status === "cancelled"
+              );
+
               let statusClasses = "";
-              if (sub.status === "currently active") {
+              if (displayStatus === "currently active") {
                 statusClasses =
                   "text-green-700 border border-green-300 bg-green-50";
-              } else if (sub.status === "upcoming") {
+              } else if (displayStatus === "upcoming") {
                 statusClasses =
                   "text-blue-700 border border-blue-300 bg-blue-50";
+              } else if (displayStatus === "cancelled (active)") {
+                statusClasses =
+                  "text-yellow-700 border border-yellow-300 bg-yellow-50";
               } else {
                 statusClasses =
                   "text-gray-600 border border-gray-300 bg-gray-50";
               }
+
+              const remainingMs = end.getTime() - now.getTime();
+              const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+              const daysText =
+                remainingDays > 0 ? `Expires in ${remainingDays} days` : "Expired";
 
               return (
                 <li
@@ -218,12 +252,12 @@ const UserDetails = () => {
                     <p>
                       <strong>Expiry: </strong> {end.toLocaleDateString()}
                     </p>
+                    <p className="text-sm italic text-gray-600">{daysText}</p>
                   </div>
                   <div>
                     <p>
                       <span className="inline-block text-sm font-semibold px-3 py-1 rounded-full">
-                        {sub.status.charAt(0).toUpperCase() +
-                          sub.status.slice(1)}
+                        {displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
                       </span>
                     </p>
                   </div>

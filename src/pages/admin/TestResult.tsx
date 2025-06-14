@@ -1,39 +1,44 @@
-// src/components/PlagiarismReports.tsx
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../utils/useAuth";
 
-interface MatchedSentence {
+interface MatchDetail {
   sentence: string;
   sourceTitle: string;
-  matchType: "Exact" | "Partial";
 }
 
 interface Report {
   id: number;
-  resource_id: number;
   user_id: number;
+  filename: string;
+  total_exact_score: number;
+  total_partial_score: number;
+  unique_score: number;
+  user_files: any[];
+  exact_matches: MatchDetail[];
+  partial_matches: MatchDetail[];
+  plagiarism_files: any[];
+  submitted_document: string;
+  plagiarised_snippets: any[];
+  matched_pairs: any[];
+  document_citation_status: string | null;
+  citations_found: any;
   created_at: string;
-  plagiarism_percentage: number;
-  matched_sentences: MatchedSentence[];
-  citation_issues: Record<string, any>;
+  updated_at: string;
 }
 
 export default function PlagiarismReports() {
   const { user, loading: authLoading } = useAuth();
   const [records, setRecords] = useState<Report[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterSuccess, setFilterSuccess] = useState<
-    "All" | "Passed" | "Failed"
-  >("All");
-  const [filterType, setFilterType] = useState<"All" | "Exact" | "Partial">(
-    "All"
-  );
+  const [filterSuccess, setFilterSuccess] = useState<"All" | "Passed" | "Failed">("All");
+  const [filterType, setFilterType] = useState<"All" | "Exact" | "Partial">("All");
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !user) return;
+
     const fetchData = async () => {
       setLoading(true);
       const token =
@@ -53,22 +58,29 @@ export default function PlagiarismReports() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, [authLoading, user]);
 
   const filtered = useMemo(() => {
     return records.filter((r) => {
       const search = searchTerm.toLowerCase();
+      const similarity = r.total_exact_score + r.total_partial_score;
       const matchesSearch =
         String(r.id).includes(search) ||
-        String(r.plagiarism_percentage).includes(search);
+        similarity.toFixed(1).includes(search) ||
+        r.filename.toLowerCase().includes(search);
 
-      const successStatus = r.plagiarism_percentage < 30 ? "Passed" : "Failed";
-      const matchesSuccess =
-        filterSuccess === "All" || successStatus === filterSuccess;
-      const matchTypes = r.matched_sentences.map((s) => s.matchType);
+      const successStatus = similarity < 30 ? "Passed" : "Failed";
+      const matchesSuccess = filterSuccess === "All" || successStatus === filterSuccess;
+
+      const hasExact = r.exact_matches && r.exact_matches.length > 0;
+      const hasPartial = r.partial_matches && r.partial_matches.length > 0;
+
       const matchesType =
-        filterType === "All" || matchTypes.includes(filterType);
+        filterType === "All" ||
+        (filterType === "Exact" && hasExact) ||
+        (filterType === "Partial" && hasPartial);
 
       return matchesSearch && matchesSuccess && matchesType;
     });
@@ -80,10 +92,11 @@ export default function PlagiarismReports() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Plagiarism Scan Reports</h1>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-4 mb-6">
         <input
-          placeholder="Search by ID or similarity"
+          placeholder="Search by ID, filename or similarity"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-grow border p-2 rounded"
@@ -114,33 +127,32 @@ export default function PlagiarismReports() {
           <thead className="bg-gray-100">
             <tr>
               <th>ID</th>
+              <th>Filename</th>
               <th>Date</th>
               <th>Similarity %</th>
               <th>Status</th>
-              <th>Matches</th>
+              <th>Exact Matches</th>
+              <th>Partial Matches</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center p-4">
+                <td colSpan={8} className="text-center p-4">
                   No reports found.
                 </td>
               </tr>
             )}
             {filtered.map((r) => {
-              const success =
-                r.plagiarism_percentage < 30 ? "Passed" : "Failed";
+              const similarity = r.total_exact_score + r.total_partial_score;
+              const success = similarity < 30 ? "Passed" : "Failed";
               return (
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="p-2 border">{r.id}</td>
-                  <td className="p-2 border">
-                    {new Date(r.created_at).toLocaleString()}
-                  </td>
-                  <td className="p-2 border">
-                    {r.plagiarism_percentage.toFixed(1)}%
-                  </td>
+                  <td className="p-2 border">{r.filename}</td>
+                  <td className="p-2 border">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="p-2 border">{similarity.toFixed(1)}%</td>
                   <td
                     className={`p-2 border font-semibold ${
                       success === "Passed" ? "text-green-600" : "text-red-600"
@@ -148,7 +160,8 @@ export default function PlagiarismReports() {
                   >
                     {success}
                   </td>
-                  <td className="p-2 border">{r.matched_sentences.length}</td>
+                  <td className="p-2 border">{r.exact_matches.length}</td>
+                  <td className="p-2 border">{r.partial_matches.length}</td>
                   <td className="p-2 border">
                     <button
                       onClick={() => setSelectedReport(r)}
@@ -171,7 +184,7 @@ export default function PlagiarismReports() {
           onClick={() => setSelectedReport(null)}
         >
           <div
-            className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl"
+            className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -182,29 +195,34 @@ export default function PlagiarismReports() {
             </button>
             <h2 className="text-2xl mb-4">Report #{selectedReport.id}</h2>
             <p>
+              <strong>Filename:</strong> {selectedReport.filename}
+            </p>
+            <p>
               <strong>Similarity:</strong>{" "}
-              {selectedReport.plagiarism_percentage.toFixed(1)}%
+              {(selectedReport.total_exact_score + selectedReport.total_partial_score).toFixed(1)}%
             </p>
             <p>
               <strong>Status:</strong>{" "}
               <span
                 className={
-                  selectedReport.plagiarism_percentage < 30
+                  selectedReport.total_exact_score + selectedReport.total_partial_score < 30
                     ? "text-green-600"
                     : "text-red-600"
                 }
               >
-                {selectedReport.plagiarism_percentage < 30
+                {(selectedReport.total_exact_score + selectedReport.total_partial_score) < 30
                   ? "Passed"
                   : "Failed"}
               </span>
             </p>
             <hr className="my-4" />
-            {selectedReport.matched_sentences.length === 0 ? (
-              <p>No matched sentences found.</p>
+
+            <h3 className="font-semibold mb-2">Exact Matches</h3>
+            {selectedReport.exact_matches.length === 0 ? (
+              <p>No exact matches found.</p>
             ) : (
-              <ul className="space-y-3 max-h-64 overflow-y-auto">
-                {selectedReport.matched_sentences.map((m, i) => (
+              <ul className="space-y-3 max-h-32 overflow-y-auto">
+                {selectedReport.exact_matches.map((m, i) => (
                   <li key={i} className="border p-2 rounded">
                     <p>
                       <strong>Sentence:</strong> {m.sentence}
@@ -213,7 +231,28 @@ export default function PlagiarismReports() {
                       <strong>Source:</strong> {m.sourceTitle}
                     </p>
                     <p>
-                      <strong>Match Type:</strong> {m.matchType}
+                      <strong>Match Type:</strong> Exact
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h3 className="font-semibold mt-4 mb-2">Partial Matches</h3>
+            {selectedReport.partial_matches.length === 0 ? (
+              <p>No partial matches found.</p>
+            ) : (
+              <ul className="space-y-3 max-h-32 overflow-y-auto">
+                {selectedReport.partial_matches.map((m, i) => (
+                  <li key={i} className="border p-2 rounded">
+                    <p>
+                      <strong>Sentence:</strong> {m.sentence}
+                    </p>
+                    <p>
+                      <strong>Source:</strong> {m.sourceTitle}
+                    </p>
+                    <p>
+                      <strong>Match Type:</strong> Partial
                     </p>
                   </li>
                 ))}

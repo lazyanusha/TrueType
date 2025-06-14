@@ -12,6 +12,7 @@ import AccountTab from "../../components/tabs/users/AccountTab";
 import { useAuth } from "../../utils/useAuth";
 import SubscriptionTab from "../../components/tabs/users/SubscriptionTab";
 import NotificationsTab from "../../components/tabs/users/NotificationTab";
+import ReportsTab from "../../components/tabs/users/ReportTab";
 
 const UserSettingsPage = () => {
   const { user } = useAuth(); // contains id, roles, etc.
@@ -86,6 +87,13 @@ const UserSettingsPage = () => {
             >
               Notifications
             </TabsTrigger>
+
+            <TabsTrigger
+              value="reports"
+              className="py-3 text-lg font-medium rounded-xl shadow-md bg-gray-50 hover:bg-gray-100 transition-all"
+            >
+              Reports
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="account" className="mt-6">
@@ -99,9 +107,13 @@ const UserSettingsPage = () => {
           <TabsContent value="subscription" className="mt-6">
             <SubscriptionTab />
           </TabsContent>
+
           <TabsContent value="notifications">
-            <NotificationsTab
-            />
+            <NotificationsTab />
+          </TabsContent>
+
+          <TabsContent value="reports" className="mt-6">
+            <ReportsTab />
           </TabsContent>
         </Tabs>
       </motion.div>

@@ -21,6 +21,8 @@ interface Props {
   getCitationStyles: (status: keyof typeof citationInfo) => string;
 }
 
+
+
 const ResultSummary: React.FC<Props> = ({
   resultData,
   animatedPercentage,
@@ -93,6 +95,7 @@ const ResultSummary: React.FC<Props> = ({
     });
     return groups;
   }, [matched_pairs]);
+  
 
   return (
     <>
