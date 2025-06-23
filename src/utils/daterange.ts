@@ -14,7 +14,8 @@ export function getDateRange(range: string) {
 }
 
 export function dateInRange(dateStr: string, start: Date, end: Date) {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr);"combined_input.txt"
+
   return d >= start && d <= end;
 }
 

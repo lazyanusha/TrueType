@@ -81,31 +81,37 @@ const FileUploadHandle = ({ onCheck, onShowResults }: Props) => {
   };
 
   // Convert combined text to .txt file
-  const textToFile = (text: string): File => {
-    const blob = new Blob([text], { type: "text/plain" });
-    return new File([blob], "combined_input.txt", { type: "text/plain" });
-  };
+ const textToFile = (text: string, filename: string): File => {
+  const blob = new Blob([text], { type: "text/plain" });
+  return new File([blob], filename, { type: "text/plain" });
+};
 
   // Trigger plagiarism check
-  const handleCheckPlagiarism = async () => {
-    const combinedText = getCombinedText();
-    if (!combinedText.trim()) {
-      alert("Please input text or upload at least one file.");
-      return;
-    }
+ const handleCheckPlagiarism = async () => {
+  const combinedText = getCombinedText();
+  if (!combinedText.trim()) {
+    alert("Please input text or upload at least one file.");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const textFile = textToFile(combinedText);
-      await onCheck(textFile);
-      clearText();
-      onShowResults?.();
-    } catch (err: any) {
-      alert("Error checking plagiarism: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+  try {
+    const filename =
+      files.length > 0
+        ? `combined_${files.map((f) => f.name.split(".")[0]).join("_")}.txt`
+        : `manual_input_${Date.now()}.txt`;
+
+    const textFile = textToFile(combinedText, filename);
+    await onCheck(textFile);
+    clearText();
+    onShowResults?.();
+  } catch (err: any) {
+    alert("Error checking plagiarism: " + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <FileUploadSection

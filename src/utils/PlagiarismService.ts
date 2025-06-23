@@ -1,4 +1,4 @@
-import type { ResultData } from "../../components/publilc/types/resultTypes";
+import type { ResultData } from "../components/publilc/types/resultTypes";
 
 export async function checkPlagiarism(file: File): Promise<ResultData> {
   const formData = new FormData();

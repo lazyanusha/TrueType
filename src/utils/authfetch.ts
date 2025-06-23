@@ -65,8 +65,6 @@ export async function authFetch(
     accessToken = await refreshAccessToken();
     if (!accessToken) {
       clearTokens();
-      // We cannot call logout here since no access to context, 
-      // so just throw to let caller handle logout (or redirect)
       throw new Error("Unauthorized: Access token expired and refresh failed");
     }
   }
