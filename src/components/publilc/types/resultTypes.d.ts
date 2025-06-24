@@ -1,4 +1,4 @@
-export interface ResultData {
+export interface resultTypes {
   submittedDocument: string;
   matchedSources: MatchedSource[];
   scanProperties: {

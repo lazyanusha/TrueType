@@ -1,63 +1,56 @@
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
-import ConfettiEffect from "./ConfettieEffect";
 import { useAuth } from "../../utils/useAuth";
+import ConfettiEffect from "./ConfettieEffect";
 
-interface FileUploadSectionProps {
+interface Props {
 	loading: boolean;
 	files: File[];
 	text: string;
 	wordCount: number;
-	extractedTexts?: Record<string, string>;
 	handleFilesSelected: (e: ChangeEvent<HTMLInputElement>) => void;
 	handleTextChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
-	handleCheckPlagiarism: () => void;
+	handleCheckPlagiarism: () => Promise<void>;
 	clearText: () => void;
 	removeFile: (index: number) => void;
+	elapsedTime: number;
 }
 
 const supportedExtensions = [".txt", ".pdf", ".docx"];
-
-const isSupportedFile = (fileName: string) => {
-	const lower = fileName.toLowerCase();
-	return supportedExtensions.some((ext) => lower.endsWith(ext));
-};
-
-const countSentences = (text: string) => {
-	return text
-		.split(/[.!?]+/)
-		.map((s) => s.trim())
-		.filter((s) => s.length > 5).length;
-};
-
-const countWords = (text: string) => {
-	return text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
-};
-
 const MAX_TEXT_SUBMISSIONS = 5;
 const MAX_FILE_UPLOADS = 5;
 const MAX_UPLOADS = MAX_TEXT_SUBMISSIONS + MAX_FILE_UPLOADS;
 const MAX_WORDS = 1000;
 
+const isSupportedFile = (fileName: string) =>
+	supportedExtensions.some((ext) => fileName.toLowerCase().endsWith(ext));
+
+const countWords = (text: string) =>
+	text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
+
+const countSentences = (text: string) =>
+	text
+		.split(/[.!?]+/)
+		.map((s) => s.trim())
+		.filter((s) => s.length > 5).length;
+
 const resetCountsIfNewDay = () => {
-	const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+	const todayStr = new Date().toISOString().slice(0, 10);
 	const storedDate = localStorage.getItem("guest_last_reset_date");
 
 	if (storedDate !== todayStr) {
-		// New day → reset counters and update date
 		localStorage.setItem("guest_last_reset_date", todayStr);
 		localStorage.setItem("textSubmissionsCount", "0");
 		localStorage.setItem("fileUploadsCount", "0");
 		return { text: 0, file: 0 };
 	}
 
-	// Same day: return current stored values
 	return {
 		text: parseInt(localStorage.getItem("textSubmissionsCount") || "0", 10),
 		file: parseInt(localStorage.getItem("fileUploadsCount") || "0", 10),
 	};
 };
 
-const FileUploadSection: React.FC<FileUploadSectionProps> = ({
+const FileUploadSection: React.FC<Props> = ({
 	loading,
 	files,
 	text,
@@ -69,20 +62,20 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 	removeFile,
 }) => {
 	const { user } = useAuth();
-
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const [showConfetti] = useState(false);
 
-	const [textSubmissionsCount, setTextSubmissionsCount] = useState(() => {
-		return resetCountsIfNewDay().text;
-	});
-	const [fileUploadsCount, setFileUploadsCount] = useState(() => {
-		return resetCountsIfNewDay().file;
-	});
+	const [textSubmissionsCount, setTextSubmissionsCount] = useState(
+		() => resetCountsIfNewDay().text
+	);
+	const [fileUploadsCount, setFileUploadsCount] = useState(
+		() => resetCountsIfNewDay().file
+	);
 
 	useEffect(() => {
-		const counts = resetCountsIfNewDay();
-		setTextSubmissionsCount(counts.text);
-		setFileUploadsCount(counts.file);
+		const { text, file } = resetCountsIfNewDay();
+		setTextSubmissionsCount(text);
+		setFileUploadsCount(file);
 	}, []);
 
 	useEffect(() => {
@@ -95,23 +88,17 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 		}
 	}, [user]);
 
-	const nonUserExceededLimit =
+	const hasEnoughSentences = countSentences(text) >= 10;
+	const nonUserLimitReached =
 		!user &&
 		(textSubmissionsCount >= MAX_TEXT_SUBMISSIONS ||
 			fileUploadsCount >= MAX_FILE_UPLOADS);
-
 	const supportedFiles = files.filter((file) => isSupportedFile(file.name));
-	const showInputSections = !nonUserExceededLimit;
-	const hasEnoughSentences = countSentences(text) >= 10;
-	const [showConfetti, setShowConfetti] = useState(false);
+	const showInputSections = !nonUserLimitReached;
 
-	const handleFileUpload = () => {
-		if (loading || nonUserExceededLimit) {
-			if (nonUserExceededLimit) {
-				alert(
-					`Guest upload limit reached for today (${MAX_UPLOADS} files). Please log in to upload more files.`
-				);
-			}
+	const handleFileUploadClick = () => {
+		if (loading || nonUserLimitReached) {
+			alert("Upload limit reached. Please log in for unlimited access.");
 			return;
 		}
 		if (text.trim()) {
@@ -121,19 +108,17 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 		fileInputRef.current?.click();
 	};
 
-	const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-		if (!e.target.files) return;
+	const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+		const selectedFiles = Array.from(e.target.files || []);
+		if (!selectedFiles.length) return;
 
-		const selectedFiles = Array.from(e.target.files);
-		const unsupportedFiles = selectedFiles.filter(
+		// Extension validation
+		const unsupported = selectedFiles.filter(
 			(file) => !isSupportedFile(file.name)
 		);
-
-		if (unsupportedFiles.length > 0) {
+		if (unsupported.length) {
 			alert(
-				`Unsupported file types: ${unsupportedFiles
-					.map((f) => f.name)
-					.join(", ")}`
+				`Unsupported file types: ${unsupported.map((f) => f.name).join(", ")}`
 			);
 			e.target.value = "";
 			return;
@@ -148,15 +133,7 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 		if (!user) {
 			if (fileUploadsCount >= MAX_FILE_UPLOADS) {
 				alert(
-					`Guest upload limit reached for today (${MAX_UPLOADS} files or texts). Please log in to upload more files.`
-				);
-				e.target.value = "";
-				return;
-			}
-
-			if (fileUploadsCount + selectedFiles.length > MAX_FILE_UPLOADS) {
-				alert(
-					`Uploading these files will exceed your daily guest upload limit (${MAX_UPLOADS} files or texts). Please log in to get unlimited access.`
+					`Daily upload limit reached (${MAX_FILE_UPLOADS} files). Please log in for unlimited uploads.`
 				);
 				e.target.value = "";
 				return;
@@ -167,205 +144,187 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 			);
 
 			if (txtFiles.length > 0) {
-				Promise.all(
-					txtFiles.map(
-						(file) =>
-							new Promise<string>((resolve, reject) => {
-								const reader = new FileReader();
-								reader.onload = () => resolve(reader.result as string);
-								reader.onerror = () => reject("Failed to read file");
-								reader.readAsText(file);
-							})
-					)
-				)
-					.then((texts) => {
-						const totalWords = texts.reduce(
-							(sum, text) => sum + countWords(text),
-							0
+				try {
+					const texts = await Promise.all(
+						txtFiles.map(
+							(file) =>
+								new Promise<string>((resolve, reject) => {
+									const reader = new FileReader();
+									reader.onload = () =>
+										resolve((reader.result as string) || "");
+									reader.onerror = () => reject();
+									reader.readAsText(file);
+								})
+						)
+					);
+
+					const totalWords = texts.reduce((sum, t) => sum + countWords(t), 0);
+
+					if (totalWords > MAX_WORDS) {
+						alert(
+							"Uploaded .txt files exceed the 1000-word limit. Please log in to continue."
 						);
-						if (totalWords > MAX_WORDS) {
-							alert(
-								"Total words in uploaded .txt files exceed 1000 words limit. Please log in to upload larger files."
-							);
-							e.target.value = "";
-							return;
-						}
-
-						setFileUploadsCount((prev) => {
-							const updated = prev + selectedFiles.length;
-							const todayStr = new Date().toISOString().slice(0, 10);
-							localStorage.setItem("guest_last_reset_date", todayStr);
-							localStorage.setItem("fileUploadsCount", String(updated));
-							return updated;
-						});
-
-						handleFilesSelected(e);
-						e.target.value = ""; // ✅ Clear file input to allow re-upload
-					})
-					.catch(() => {
-						alert("Error reading files. Please try again.");
 						e.target.value = "";
-					});
-
-				return;
+						return;
+					}
+				} catch {
+					alert("Failed to read one or more files.");
+					e.target.value = "";
+					return;
+				}
 			} else {
 				alert("Please log in to upload PDF or DOCX files.");
 				e.target.value = "";
 				return;
 			}
+
+			setFileUploadsCount((prev) => {
+				const updated = prev + selectedFiles.length;
+				localStorage.setItem(
+					"guest_last_reset_date",
+					new Date().toISOString().slice(0, 10)
+				);
+				localStorage.setItem("fileUploadsCount", updated.toString());
+				return updated;
+			});
 		}
 
-		// ✅ For logged-in users
 		handleFilesSelected(e);
-		e.target.value = ""; // ✅ Clear file input to allow re-upload
+		e.target.value = "";
 	};
 
 	const onTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-		const newText = e.target.value;
-		const newWordCount = countWords(newText);
+		const newWordCount = countWords(e.target.value);
 
 		if (!user && newWordCount > MAX_WORDS) {
-			alert(
-				"You've exceeded the 1000-word limit for text input. Please log in to check longer texts."
-			);
+			alert("Text exceeds 1000 words. Please log in for extended limits.");
 			return;
 		}
+
 		if (supportedFiles.length > 0) {
-			alert("File upload disabled. Please remove files to enter text.");
+			alert("Remove uploaded files before entering text.");
 			return;
 		}
 
 		handleTextChange(e);
 	};
 
-	const onCheckPlagiarism = () => {
+	const onCheckClick = async () => {
 		if (!user) {
 			if (wordCount > MAX_WORDS) {
-				alert(
-					"You've exceeded the 1000-word limit. Please log in to check longer texts."
-				);
+				alert("You've exceeded the 1000-word limit.");
 				return;
 			}
 			if (textSubmissionsCount >= MAX_TEXT_SUBMISSIONS) {
-				alert(
-					`Guest text submission limit reached for today (${MAX_UPLOADS} submissions or files). Please log in to continue checking text.`
-				);
+				alert("Daily guest text submission limit reached.");
 				return;
 			}
 			if (fileUploadsCount >= MAX_FILE_UPLOADS) {
-				alert(
-					`Guest upload limit reached for today (${MAX_UPLOADS} files or texts). Please log in to get unlimited access.`
-				);
+				alert("Daily guest upload limit reached.");
 				return;
 			}
 		}
 
-		if (
-			!hasEnoughSentences &&
-			text.trim() !== "" &&
-			supportedFiles.length === 0
-		) {
-			alert(
-				"Please enter at least 10 meaningful sentences for plagiarism checking."
-			);
+		if (!hasEnoughSentences && text.trim() && !supportedFiles.length) {
+			alert("Please enter at least 10 meaningful sentences.");
 			return;
 		}
 
 		if (!user) {
-			setTextSubmissionsCount((prev) => {
-				const updated = prev + 1;
-				const todayStr = new Date().toISOString().slice(0, 10);
-				localStorage.setItem("guest_last_reset_date", todayStr);
-				localStorage.setItem("textSubmissionsCount", String(updated));
-				return updated;
-			});
+			const updated = textSubmissionsCount + 1;
+			localStorage.setItem(
+				"guest_last_reset_date",
+				new Date().toISOString().slice(0, 10)
+			);
+			localStorage.setItem("textSubmissionsCount", updated.toString());
+			setTextSubmissionsCount(updated);
 		}
-		setShowConfetti(true);
-		setTimeout(() => setShowConfetti(false), 5000);
-		handleCheckPlagiarism();
+
+		await handleCheckPlagiarism();
 	};
 
 	return (
 		<section className="bg-white rounded-xl p-8 shadow-xl mb-12 text-gray-900 relative">
+			{/* Upload Box */}
 			<div
-				className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer hover:border-blue-500 ${
-					loading || nonUserExceededLimit
-						? "opacity-50 cursor-not-allowed"
-						: "border-gray-300"
+				className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer ${
+					loading || nonUserLimitReached
+						? "opacity-50 cursor-not-allowed border-gray-300"
+						: "hover:border-blue-500 border-gray-300"
 				}`}
-				onClick={handleFileUpload}
+				onClick={handleFileUploadClick}
 			>
 				<p className="text-lg font-semibold">Click to upload files</p>
 				<p className="text-sm text-gray-600 mt-1">
-					Supports multiple files (.txt, .pdf, .docx)
+					Supports .txt, .pdf, .docx (max 5 files/day for guests)
 				</p>
 				<input
 					ref={fileInputRef}
 					type="file"
-					className="hidden"
 					multiple
+					className="hidden"
 					onChange={onFileChange}
-					disabled={loading || !!text.trim() || nonUserExceededLimit}
+					disabled={loading || !!text.trim() || nonUserLimitReached}
 					accept={supportedExtensions.join(",")}
 				/>
 			</div>
 
+			{/* Text Area */}
 			{showInputSections && (
-				<>
-					<div className="relative mt-6">
-						<textarea
-							className="w-full h-48 border border-gray-300 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-							placeholder="Paste your text here to check for plagiarism..."
-							value={text}
-							onChange={onTextChange}
-							disabled={loading || supportedFiles.length > 0}
-						/>
-						{text && (
-							<button
-								onClick={clearText}
-								className="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 rounded-full w-7 h-7 flex items-center justify-center text-gray-700"
-								aria-label="Clear text"
-								title="Clear text"
-								disabled={loading}
-							>
-								&times;
-							</button>
-						)}
-						{!hasEnoughSentences && text.trim() !== "" && (
-							<p className="mt-1 text-sm text-red-600">
-								Please enter at least 10 meaningful sentences for plagiarism
-								checking.
-							</p>
-						)}
-					</div>
-
-					{supportedFiles.length > 0 && (
-						<div className="mt-4 text-sm text-gray-700 space-y-1">
-							<p>Uploaded files:</p>
-							<ul>
-								{supportedFiles.map((file, i) => (
-									<li
-										key={i}
-										className="flex items-center justify-between border border-gray-300 rounded px-3 py-1"
-									>
-										<span>{file.name}</span>
-										<button
-											type="button"
-											onClick={() => removeFile(i)}
-											className="text-red-700 hover:text-red-800 font-bold ml-3"
-											aria-label={`Remove file ${file.name}`}
-											disabled={loading}
-										>
-											&times;
-										</button>
-									</li>
-								))}
-							</ul>
-						</div>
+				<div className="relative mt-6">
+					<textarea
+						className="w-full h-48 border border-gray-300 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="Paste your text here to check for plagiarism..."
+						value={text}
+						onChange={onTextChange}
+						disabled={loading || supportedFiles.length > 0}
+					/>
+					{text && (
+						<button
+							onClick={clearText}
+							className="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 rounded-full w-7 h-7 flex items-center justify-center text-gray-700"
+							aria-label="Clear text"
+							title="Clear text"
+							disabled={loading}
+						>
+							&times;
+						</button>
 					)}
-				</>
+					{!hasEnoughSentences && text.trim() !== "" && (
+						<p className="mt-1 text-sm text-red-600">
+							Please enter at least 10 meaningful sentences.
+						</p>
+					)}
+				</div>
 			)}
 
+			{/* Uploaded File List */}
+			{supportedFiles.length > 0 && (
+				<div className="mt-4 text-sm text-gray-700 space-y-1">
+					<p>Uploaded files:</p>
+					<ul>
+						{supportedFiles.map((file, i) => (
+							<li
+								key={i}
+								className="flex items-center justify-between border border-gray-300 rounded px-3 py-1"
+							>
+								<span>{file.name}</span>
+								<button
+									type="button"
+									onClick={() => removeFile(i)}
+									className="text-red-700 hover:text-red-800 font-bold ml-3"
+									aria-label={`Remove file ${file.name}`}
+									disabled={loading}
+								>
+									&times;
+								</button>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{/* Check Button & Word Counter */}
 			<div className="mt-4 flex justify-between items-center">
 				<span
 					className={`text-sm ${
@@ -374,28 +333,18 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 				>
 					Words: {wordCount} / {MAX_WORDS}
 				</span>
-
 				<button
-					onClick={onCheckPlagiarism}
+					onClick={onCheckClick}
 					disabled={
 						loading ||
-						nonUserExceededLimit ||
+						nonUserLimitReached ||
 						(!hasEnoughSentences &&
-							text.trim() !== "" &&
+							text.trim().length > 0 &&
 							supportedFiles.length === 0)
 					}
 					className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-					title={
-						nonUserExceededLimit
-							? "Guest upload/text submission limit reached. Please log in."
-							: !hasEnoughSentences &&
-							  text.trim() !== "" &&
-							  supportedFiles.length === 0
-							? "Enter at least 10 meaningful sentences."
-							: undefined
-					}
 				>
-					{loading ? (
+					{loading && (
 						<svg
 							className="animate-spin h-5 w-5 mr-2 text-white"
 							xmlns="http://www.w3.org/2000/svg"
@@ -416,18 +365,19 @@ const FileUploadSection: React.FC<FileUploadSectionProps> = ({
 								d="M4 12a8 8 0 018-8v8H4z"
 							></path>
 						</svg>
-					) : null}
+					)}
 					Check Plagiarism
 				</button>
 			</div>
 
+			{/* Guest Warning */}
 			{!user && (
 				<div className="mt-4 text-xs text-red-500">
 					<p>
-						Guest limits: Up to {MAX_UPLOADS} text submissions or file uploads
-						per day (max 1000 words per submission).
+						Guest limits: Up to {MAX_UPLOADS} submissions per day (text or
+						files). Max 1000 words per submission.
 					</p>
-					<p>Please log in for unlimited access and more features.</p>
+					<p>Please log in for unlimited access.</p>
 				</div>
 			)}
 

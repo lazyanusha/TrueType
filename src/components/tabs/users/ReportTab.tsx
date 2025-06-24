@@ -26,7 +26,7 @@ const ReportsTab = () => {
         sessionStorage.getItem("access_token");
 
       const res = await fetch(
-        `http://localhost:8000/reports/user?page=${pageNum}&limit=${REPORTS_PER_PAGE}`,
+        `http://localhost:8000/reports`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -36,7 +36,6 @@ const ReportsTab = () => {
         throw new Error("Failed to fetch reports");
       }
 
-      // Assuming your API returns data like: { reports: [...], total_count: number }
       const data = await res.json();
 
       const formattedReports = data.reports.map((r: any) => ({

@@ -1,13 +1,13 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import type { MatchedPair, ResultData } from "../publilc/types/resultTypes";
+import type { MatchedPair, resultTypes,  } from "../publilc/types/resultTypes";
 import type { citationInfo } from "../publilc/constants/citationInfo";
 import { normalizeCitationStatus } from "../../utils/CitationUtils";
 
 
 interface Props {
-  resultData: ResultData;
+  resultData: resultTypes;
   animatedPercentage: number;
   elapsedTime: number;
   showResults: boolean;

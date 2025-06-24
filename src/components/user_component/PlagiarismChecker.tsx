@@ -1,42 +1,29 @@
-import { useState } from "react";
-import { checkPlagiarism } from "../utils/PlagiarismService";
-import FileUploadHandle from "../handler/FileUpholadHandle";
-import type { ResultData } from "../types/resultTypes"; // Changed from ExtendedResultData to ResultData
+import type { resultTypes } from "../publilc/types/resultTypes";
+import FileUploadHandle from "../publilc/handler/FileUpholadHandle";
+import ConfettiEffect from "./ConfettieEffect";
 
 const PlagiarismChecker = ({
-  onResult,
-  onShowResults,
+	onCheck,
+	onShowResults,
+	loading,
+  elapsedTime,
 }: {
-  onResult?: (data: ResultData) => void; // Updated type
-  onShowResults?: () => void;
+	onResult?: (data: resultTypes) => void;
+	onCheck: (file: File) => void;
+	onShowResults?: () => void;
+	loading: boolean;
+  elapsedTime: number;
 }) => {
-  const [loading, setLoading] = useState(false);
-
-  const handleCheck = async (file: File) => {
-    setLoading(true);
-    try {
-      const resultData: ResultData = await checkPlagiarism(file); // Updated type
-      console.log("Starting plagiarism check...");
-      console.log("Backend response:", resultData);
-      
-      if (onResult) onResult(resultData);
-      if (onShowResults) onShowResults();
-    } catch (error: any) {
-      console.error("Error during plagiarism check:", error);
-      alert(`Error: ${error.message}`);
-    } finally {
-      console.log("Loading finished");
-      setLoading(false);
-    }
-  };
-
-  return (
-    <FileUploadHandle
-      onCheck={handleCheck}
-      onShowResults={onShowResults}
-      loading={loading}
-    />
-  );
+	return (
+		<>
+			<FileUploadHandle
+        onCheck={onCheck}
+        onShowResults={onShowResults}
+        loading={loading}
+        elapsedTime={elapsedTime}			/>
+			<ConfettiEffect active={loading} />
+		</>
+	);
 };
 
 export default PlagiarismChecker;

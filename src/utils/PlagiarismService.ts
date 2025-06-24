@@ -1,6 +1,6 @@
-import type { ResultData } from "../components/publilc/types/resultTypes";
+import type { resultTypes } from "../components/publilc/types/resultTypes";
 
-export async function checkPlagiarism(file: File): Promise<ResultData> {
+export async function checkPlagiarism(file: File): Promise<resultTypes> {
   const formData = new FormData();
   formData.append("file", file);
 
@@ -28,7 +28,7 @@ export async function checkPlagiarism(file: File): Promise<ResultData> {
   }
 
   // Ensure required fields exist with defaults
-  const defaultResult: ResultData = {
+  const defaultResult: resultTypes = {
     submittedDocument: resultData.submittedDocument || "",
     matched_pairs: Array.isArray(resultData.matched_pairs) ? resultData.matched_pairs : [],
     matchedSources: Array.isArray(resultData.matchedSources) ? resultData.matchedSources : [],
