@@ -9,7 +9,7 @@ export const termsText = `
 
 5. **Accuracy Limitations**: While the system attempts to detect plagiarism and citations accurately, it may not catch all cases or may return false positives/negatives. The user is responsible for interpreting the results.
 
-6. **Citation Policy**: The tool identifies common citation formats and flags improperly cited or uncited sections. However, final judgment must be made by the user or relevant authority.
+6. **Citation Policy**: The tool identifies common citation formats and flags improperly cited or uncited sections. However, the final judgment must be made by the user or relevant authority.
 
 7. **Prohibited Content**: Submitting illegal, offensive, or harmful material is strictly prohibited.
 
@@ -18,5 +18,5 @@ export const termsText = `
 9. **User Agreement**: By using the service, you agree to these terms and acknowledge that results are assistive in nature.
 
 10. **Refund Policy**:
-   - No refunds for auto-renewed subscriptions (users must cancel ≥24 hours before renewal).
+   - No refunds for cancelled or ongoing plans.
 `;

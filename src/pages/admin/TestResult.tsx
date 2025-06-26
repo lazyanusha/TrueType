@@ -26,16 +26,16 @@ export default function PlagiarismReports() {
 	const { user, loading: authLoading } = useAuth();
 	const [records, setRecords] = useState<Report[]>([]);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [filterType, setFilterType] = useState<"All" | "Exact" | "Partial">(
-		"All"
-	);
+	const [filterType, setFilterType] = useState<
+		"All" | "Plagiarized" | "Non-Plagiarized"
+	>("All");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [selectedReport, setSelectedReport] = useState<Report | null>(null);
 	const [page, setPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const [, setLoading] = useState(true);
+	const [, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -90,20 +90,20 @@ export default function PlagiarismReports() {
 	const filtered = useMemo(() => {
 		return records.filter((r) => {
 			const search = searchTerm.toLowerCase();
-			const similarity = r.total_exact_score + r.total_partial_score;
+			const similarity =
+				Number(r.total_exact_score) + Number(r.total_partial_score);
+			const plagiarized = similarity >= 20;
+
 			const matchesSearch =
 				String(r.id).includes(search) ||
 				similarity.toFixed(1).includes(search) ||
 				r.filename?.toLowerCase().includes(search) ||
 				String(r.full_name).toLowerCase().includes(search);
 
-			const hasExact = r.exact_matches?.length > 0;
-			const hasPartial = r.partial_matches?.length > 0;
-
 			const matchesType =
 				filterType === "All" ||
-				(filterType === "Exact" && hasExact) ||
-				(filterType === "Partial" && hasPartial);
+				(filterType === "Plagiarized" && plagiarized) ||
+				(filterType === "Non-Plagiarized" && !plagiarized);
 
 			const createdDate = new Date(r.created_at);
 			const start = startDate ? new Date(startDate) : null;
@@ -115,9 +115,6 @@ export default function PlagiarismReports() {
 			return matchesSearch && matchesType && matchesDate;
 		});
 	}, [records, searchTerm, filterType, startDate, endDate]);
-
-	if (loading || authLoading) return <p>Loading...</p>;
-	if (error) return <p className="text-red-600">{error}</p>;
 
 	return (
 		<div className="">
@@ -150,9 +147,9 @@ export default function PlagiarismReports() {
 					onChange={(e) => setFilterType(e.target.value as any)}
 					className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3C5773]"
 				>
-					<option>All</option>
-					<option>Exact</option>
-					<option>Partial</option>
+					<option value="All">All</option>
+					<option value="Plagiarized">Plagiarized</option>
+					<option value="Non-Plagiarized">Non-Plagiarized</option>
 				</select>
 			</div>
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FileTextIcon, Trash2Icon } from "lucide-react";
+import { authFetch } from "../../../utils/authfetch";
 
 type MatchDetail = {
 	sentence: string;
@@ -89,11 +90,8 @@ const ReportsTab = () => {
 
 	const fetchFullReport = async (reportId: number, index: number) => {
 		try {
-			const res = await fetch(
-				`http://localhost:8000/reports/user/${reportId}`,
-				{
-					headers: { Authorization: `Bearer ${token}` },
-				}
+			const res = await authFetch(
+				`http://localhost:8000/reports/user/${reportId}`
 			);
 			if (!res.ok) throw new Error("Failed to fetch report details");
 			const data = await res.json();
