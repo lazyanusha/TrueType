@@ -1,14 +1,29 @@
 import type { resultTypes } from "../components/publilc/types/resultTypes";
 
+function countWords(text: string): number {
+	if (!text) return 0;
+	return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function countCharacters(text: string): number {
+	if (!text) return 0;
+	return text.length;
+}
+
 export async function saveReportToDB(result: resultTypes, token: string) {
+	const submittedDocument = result.submittedDocument || "";
+
+	const wordsCount = countWords(submittedDocument);
+	const charactersCount = countCharacters(submittedDocument);
+
 	const payload = {
-		submitted_document: result.submittedDocument,
+		submitted_document: submittedDocument,
 		unique_score: result.unique_score,
 		total_exact_score: result.total_exact_score,
 		total_partial_score: result.total_partial_score,
-		words: result.scanProperties.words || 0,
-		characters: result.scanProperties.characters || 0,
-		citation_status: result.scanProperties.citationStatus || "Uncited",
+		words: wordsCount,
+		characters: charactersCount,
+		citation_status: result.scanProperties?.citationStatus ?? "Uncited",
 	};
 
 	console.log("📦 Payload to save:", payload);

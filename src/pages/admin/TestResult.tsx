@@ -2,265 +2,360 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../../utils/useAuth";
 
 interface MatchDetail {
-  sentence: string;
-  sourceTitle: string;
+	sentence: string;
+	sourceTitle: string;
 }
 
 interface Report {
-  id: number;
-  user_id: number;
-  filename: string;
-  total_exact_score: number;
-  total_partial_score: number;
-  unique_score: number;
-  user_files: any[];
-  exact_matches: MatchDetail[];
-  partial_matches: MatchDetail[];
-  plagiarism_files: any[];
-  submitted_document: string;
-  plagiarised_snippets: any[];
-  matched_pairs: any[];
-  document_citation_status: string | null;
-  citations_found: any;
-  created_at: string;
-  updated_at: string;
+	id: number;
+	full_name: string;
+	filename: string;
+	total_exact_score: number;
+	total_partial_score: number;
+	unique_score: number;
+	exact_matches: MatchDetail[];
+	partial_matches: MatchDetail[];
+	submitted_document: string;
+	document_citation_status: string | null;
+	created_at: string;
 }
 
+const REPORTS_PER_PAGE = 10;
+
 export default function PlagiarismReports() {
-  const { user, loading: authLoading } = useAuth();
-  const [records, setRecords] = useState<Report[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterSuccess, setFilterSuccess] = useState<"All" | "Passed" | "Failed">("All");
-  const [filterType, setFilterType] = useState<"All" | "Exact" | "Partial">("All");
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const { user, loading: authLoading } = useAuth();
+	const [records, setRecords] = useState<Report[]>([]);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [filterType, setFilterType] = useState<"All" | "Exact" | "Partial">(
+		"All"
+	);
+	const [startDate, setStartDate] = useState("");
+	const [endDate, setEndDate] = useState("");
+	const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+	const [page, setPage] = useState(1);
+	const [totalPages, setTotalPages] = useState(1);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (authLoading || !user) return;
+	useEffect(() => {
+		const fetchData = async () => {
+			setLoading(true);
+			const token =
+				localStorage.getItem("access_token") ||
+				sessionStorage.getItem("access_token");
 
-    const fetchData = async () => {
-      setLoading(true);
-      const token =
-        localStorage.getItem("access_token") ||
-        sessionStorage.getItem("access_token");
+			try {
+				const res = await fetch(
+					`http://localhost:8000/reports/all?page=${page}&limit=${REPORTS_PER_PAGE}`,
+					{
+						headers: { Authorization: `Bearer ${token}` },
+					}
+				);
 
-      try {
-        const res = await fetch("http://localhost:8000/reports/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch reports");
-        const data: Report[] = await res.json();
-        setRecords(data);
-      } catch (e: any) {
-        setError(e.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+				if (!res.ok) throw new Error("Failed to fetch reports");
 
-    fetchData();
-  }, [authLoading, user]);
+				const data = await res.json();
+				setRecords(data.reports);
+				const totalCount = data.pagination?.total_count || 0;
+				setTotalPages(Math.ceil(totalCount / REPORTS_PER_PAGE));
+			} catch (e: any) {
+				setError(e.message);
+			} finally {
+				setLoading(false);
+			}
+		};
 
-  const filtered = useMemo(() => {
-    return records.filter((r) => {
-      const search = searchTerm.toLowerCase();
-      const similarity = r.total_exact_score + r.total_partial_score;
-      const matchesSearch =
-        String(r.id).includes(search) ||
-        similarity.toFixed(1).includes(search) ||
-        r.filename.toLowerCase().includes(search);
+		if (!authLoading && user) fetchData();
+	}, [authLoading, user, page]);
 
-      const successStatus = similarity < 30 ? "Passed" : "Failed";
-      const matchesSuccess = filterSuccess === "All" || successStatus === filterSuccess;
+	const getFilenameFromContent = (report: Report) => {
+		if (report.filename && report.filename.trim() !== "") {
+			return report.filename;
+		}
+		if (report.submitted_document && report.submitted_document.trim() !== "") {
+			const snippet = report.submitted_document.trim().slice(0, 30);
+			return snippet.length < report.submitted_document.length
+				? snippet + "..."
+				: snippet;
+		}
+		return "Untitled";
+	};
 
-      const hasExact = r.exact_matches && r.exact_matches.length > 0;
-      const hasPartial = r.partial_matches && r.partial_matches.length > 0;
+	const similarityColor = (sim: number) => {
+		if (sim > 80) return "text-red-600 font-bold";
+		if (sim > 50) return "text-yellow-600 font-semibold";
+		return "text-green-700";
+	};
 
-      const matchesType =
-        filterType === "All" ||
-        (filterType === "Exact" && hasExact) ||
-        (filterType === "Partial" && hasPartial);
+	const filtered = useMemo(() => {
+		return records.filter((r) => {
+			const search = searchTerm.toLowerCase();
+			const similarity = r.total_exact_score + r.total_partial_score;
+			const matchesSearch =
+				String(r.id).includes(search) ||
+				similarity.toFixed(1).includes(search) ||
+				r.filename?.toLowerCase().includes(search) ||
+				String(r.full_name).toLowerCase().includes(search);
 
-      return matchesSearch && matchesSuccess && matchesType;
-    });
-  }, [records, searchTerm, filterSuccess, filterType]);
+			const hasExact = r.exact_matches?.length > 0;
+			const hasPartial = r.partial_matches?.length > 0;
 
-  if (authLoading || loading) return <p>Loading...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
+			const matchesType =
+				filterType === "All" ||
+				(filterType === "Exact" && hasExact) ||
+				(filterType === "Partial" && hasPartial);
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Plagiarism Scan Reports</h1>
+			const createdDate = new Date(r.created_at);
+			const start = startDate ? new Date(startDate) : null;
+			const end = endDate ? new Date(endDate) : null;
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <input
-          placeholder="Search by ID, filename or similarity"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-grow border p-2 rounded"
-        />
-        <select
-          value={filterSuccess}
-          onChange={(e) => setFilterSuccess(e.target.value as any)}
-          className="p-2 border rounded"
-        >
-          <option>All</option>
-          <option>Passed</option>
-          <option>Failed</option>
-        </select>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value as any)}
-          className="p-2 border rounded"
-        >
-          <option value="All">All</option>
-          <option value="Exact">Exact Match</option>
-          <option value="Partial">Partial</option>
-        </select>
-      </div>
+			const matchesDate =
+				(!start || createdDate >= start) && (!end || createdDate <= end);
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded">
-        <table className="w-full table-auto">
-          <thead className="bg-gray-100">
-            <tr>
-              <th>ID</th>
-              <th>Filename</th>
-              <th>Date</th>
-              <th>Similarity %</th>
-              <th>Status</th>
-              <th>Exact Matches</th>
-              <th>Partial Matches</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={8} className="text-center p-4">
-                  No reports found.
-                </td>
-              </tr>
-            )}
-            {filtered.map((r) => {
-              const similarity = r.total_exact_score + r.total_partial_score;
-              const success = similarity < 30 ? "Passed" : "Failed";
-              return (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="p-2 border">{r.id}</td>
-                  <td className="p-2 border">{r.filename}</td>
-                  <td className="p-2 border">{new Date(r.created_at).toLocaleString()}</td>
-                  <td className="p-2 border">{similarity.toFixed(1)}%</td>
-                  <td
-                    className={`p-2 border font-semibold ${
-                      success === "Passed" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {success}
-                  </td>
-                  <td className="p-2 border">{r.exact_matches.length}</td>
-                  <td className="p-2 border">{r.partial_matches.length}</td>
-                  <td className="p-2 border">
-                    <button
-                      onClick={() => setSelectedReport(r)}
-                      className="text-blue-600"
-                    >
-                      View
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+			return matchesSearch && matchesType && matchesDate;
+		});
+	}, [records, searchTerm, filterType, startDate, endDate]);
 
-      {/* Modal */}
-      {selectedReport && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start pt-20 z-50"
-          onClick={() => setSelectedReport(null)}
-        >
-          <div
-            className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setSelectedReport(null)}
-              className="absolute top-4 right-4 text-xl"
-            >
-              &times;
-            </button>
-            <h2 className="text-2xl mb-4">Report #{selectedReport.id}</h2>
-            <p>
-              <strong>Filename:</strong> {selectedReport.filename}
-            </p>
-            <p>
-              <strong>Similarity:</strong>{" "}
-              {(selectedReport.total_exact_score + selectedReport.total_partial_score).toFixed(1)}%
-            </p>
-            <p>
-              <strong>Status:</strong>{" "}
-              <span
-                className={
-                  selectedReport.total_exact_score + selectedReport.total_partial_score < 30
-                    ? "text-green-600"
-                    : "text-red-600"
-                }
-              >
-                {(selectedReport.total_exact_score + selectedReport.total_partial_score) < 30
-                  ? "Passed"
-                  : "Failed"}
-              </span>
-            </p>
-            <hr className="my-4" />
+	if (loading || authLoading) return <p>Loading...</p>;
+	if (error) return <p className="text-red-600">{error}</p>;
 
-            <h3 className="font-semibold mb-2">Exact Matches</h3>
-            {selectedReport.exact_matches.length === 0 ? (
-              <p>No exact matches found.</p>
-            ) : (
-              <ul className="space-y-3 max-h-32 overflow-y-auto">
-                {selectedReport.exact_matches.map((m, i) => (
-                  <li key={i} className="border p-2 rounded">
-                    <p>
-                      <strong>Sentence:</strong> {m.sentence}
-                    </p>
-                    <p>
-                      <strong>Source:</strong> {m.sourceTitle}
-                    </p>
-                    <p>
-                      <strong>Match Type:</strong> Exact
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
+	return (
+		<div className="">
+			<h1 className="text-3xl font-bold mb-6 text-[#3C5773]">
+				All Plagiarism Reports
+			</h1>
 
-            <h3 className="font-semibold mt-4 mb-2">Partial Matches</h3>
-            {selectedReport.partial_matches.length === 0 ? (
-              <p>No partial matches found.</p>
-            ) : (
-              <ul className="space-y-3 max-h-32 overflow-y-auto">
-                {selectedReport.partial_matches.map((m, i) => (
-                  <li key={i} className="border p-2 rounded">
-                    <p>
-                      <strong>Sentence:</strong> {m.sentence}
-                    </p>
-                    <p>
-                      <strong>Source:</strong> {m.sourceTitle}
-                    </p>
-                    <p>
-                      <strong>Match Type:</strong> Partial
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+			{/* Filters */}
+			<div className="flex flex-wrap gap-4 mb-6">
+				<input
+					placeholder="Search by ID, user name, filename, similarity"
+					value={searchTerm}
+					onChange={(e) => setSearchTerm(e.target.value)}
+					className="flex-grow border border-gray-300 p-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3C5773]"
+				/>
+				<input
+					type="date"
+					value={startDate}
+					onChange={(e) => setStartDate(e.target.value)}
+					className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3C5773]"
+				/>
+				<input
+					type="date"
+					value={endDate}
+					onChange={(e) => setEndDate(e.target.value)}
+					className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3C5773]"
+				/>
+				<select
+					value={filterType}
+					onChange={(e) => setFilterType(e.target.value as any)}
+					className="p-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3C5773]"
+				>
+					<option>All</option>
+					<option>Exact</option>
+					<option>Partial</option>
+				</select>
+			</div>
+
+			{/* Table */}
+			<div className="overflow-x-auto border border-gray-300 rounded shadow-sm">
+				<table className="w-full table-auto text-sm border-collapse">
+					<thead className="bg-[#E6EAF2] text-[#3C5773]">
+						<tr>
+							<th className="p-3 border-b border-gray-300 text-left">S.No.</th>
+							<th className="p-3 border-b border-gray-300 text-left">User</th>
+							<th className="p-3 border-b border-gray-300 text-left">
+								Filename
+							</th>
+							<th className="p-3 border-b border-gray-300 text-left">Date</th>
+							<th className="p-3 border-b border-gray-300 text-left">
+								Similarity
+							</th>
+							<th className="p-3 border-b border-gray-300 text-left">Exact</th>
+							<th className="p-3 border-b border-gray-300 text-left">
+								Partial
+							</th>
+							<th className="p-3 border-b border-gray-300 text-left">Unique</th>
+							<th className="p-3 border-b border-gray-300 text-left">
+								Plagiarized?
+							</th>
+							<th className="p-3 border-b border-gray-300 text-left">
+								Citation Status
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						{filtered.length === 0 ? (
+							<tr>
+								<td colSpan={10} className="text-center p-6 text-gray-500">
+									No reports found.
+								</td>
+							</tr>
+						) : (
+							filtered.map((r, idx) => {
+								const similarity = r.total_exact_score + r.total_partial_score;
+								const plagiarized = similarity >= 20; // threshold you can adjust
+
+								return (
+									<tr
+										key={r.id}
+										className={`cursor-pointer ${
+											idx % 2 === 0 ? "bg-white" : "bg-gray-50"
+										} hover:bg-[#D0DEF7] transition-colors`}
+										onClick={() => setSelectedReport(r)}
+										title="Click to view report details"
+									>
+										<td className="p-3 border-b border-gray-300">{r.id}</td>
+										<td className="p-3 border-b border-gray-300">
+											{r.full_name}
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{getFilenameFromContent(r)}
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{new Date(r.created_at).toLocaleString()}
+										</td>
+										<td
+											className={`p-3 border-b border-gray-300 ${similarityColor(
+												similarity
+											)}`}
+										>
+											{similarity.toFixed(1)}%
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{r.total_exact_score.toFixed(1)}%
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{r.total_partial_score.toFixed(1)}%
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{r.unique_score.toFixed(1)}%
+										</td>
+										<td
+											className={`p-3 border-b border-gray-300 font-semibold ${
+												plagiarized ? "text-red-600" : "text-green-700"
+											}`}
+										>
+											{plagiarized ? "Yes" : "No"}
+										</td>
+										<td className="p-3 border-b border-gray-300">
+											{r.document_citation_status || "Uncited"}
+										</td>
+									</tr>
+								);
+							})
+						)}
+					</tbody>
+				</table>
+			</div>
+
+			{/* Pagination */}
+			<div className="mt-6 flex justify-between items-center">
+				<button
+					className="px-4 py-2 bg-[#3C5773] text-white rounded disabled:opacity-50"
+					disabled={page <= 1}
+					onClick={() => setPage((p) => Math.max(1, p - 1))}
+				>
+					Previous
+				</button>
+				<span className="text-[#3C5773] font-semibold">
+					Page {page} of {totalPages}
+				</span>
+				<button
+					className="px-4 py-2 bg-[#3C5773] text-white rounded disabled:opacity-50"
+					disabled={page >= totalPages}
+					onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+				>
+					Next
+				</button>
+			</div>
+
+			{/* Report Modal */}
+			{selectedReport && (
+				<div
+					className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-start pt-20 z-50"
+					onClick={() => setSelectedReport(null)}
+				>
+					<div
+						className="bg-white p-6 rounded-lg max-w-2xl w-full shadow-lg relative overflow-y-auto max-h-[80vh]"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<button
+							className="absolute top-4 right-4 text-3xl font-bold hover:text-red-600"
+							onClick={() => setSelectedReport(null)}
+							aria-label="Close report modal"
+						>
+							&times;
+						</button>
+						<h2 className="text-xl font-bold mb-4 text-[#3C5773]">
+							Report #{selectedReport.id}
+						</h2>
+						<p>
+							<strong>User Name:</strong> {selectedReport.full_name}
+						</p>
+						<p>
+							<strong>Filename:</strong>{" "}
+							{getFilenameFromContent(selectedReport)}
+						</p>
+						<p>
+							<strong>Similarity:</strong>{" "}
+							{(
+								selectedReport.total_exact_score +
+								selectedReport.total_partial_score
+							).toFixed(1)}
+							%
+						</p>
+						<p>
+							<strong>Citation Status:</strong>{" "}
+							{selectedReport.document_citation_status || "Uncited"}
+						</p>
+
+						<hr className="my-4" />
+						<h3 className="font-semibold mb-2 text-[#3C5773]">Exact Matches</h3>
+						<ul className="max-h-32 overflow-y-auto space-y-2">
+							{selectedReport.exact_matches.length === 0 ? (
+								<p>No exact matches.</p>
+							) : (
+								selectedReport.exact_matches.map((m, i) => (
+									<li
+										key={i}
+										className="border p-3 rounded bg-gray-50 shadow-sm"
+									>
+										<p>
+											<strong>Sentence:</strong> {m.sentence}
+										</p>
+										<p>
+											<strong>Source:</strong> {m.sourceTitle}
+										</p>
+									</li>
+								))
+							)}
+						</ul>
+
+						<h3 className="font-semibold mt-6 mb-2 text-[#3C5773]">
+							Partial Matches
+						</h3>
+						<ul className="max-h-32 overflow-y-auto space-y-2">
+							{selectedReport.partial_matches.length === 0 ? (
+								<p>No partial matches.</p>
+							) : (
+								selectedReport.partial_matches.map((m, i) => (
+									<li
+										key={i}
+										className="border p-3 rounded bg-gray-50 shadow-sm"
+									>
+										<p>
+											<strong>Sentence:</strong> {m.sentence}
+										</p>
+										<p>
+											<strong>Source:</strong> {m.sourceTitle}
+										</p>
+									</li>
+								))
+							)}
+						</ul>
+					</div>
+				</div>
+			)}
+		</div>
+	);
 }
