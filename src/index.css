@@ -1,12 +1,20 @@
 @import "tailwindcss";
+
 .CircularProgressbar-text {
   dominant-baseline: middle;
   text-anchor: middle;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-fadeIn {
@@ -14,7 +22,6 @@
   animation-fill-mode: forwards;
 }
 
-h1{
-  color:#3C5773;
+h1 {
+  color: #3C5773;
 }
-

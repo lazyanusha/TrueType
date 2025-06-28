@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "../../utils/useAuth";
-import ConfettiEffect from "./ConfettieEffect";
 
 interface Props {
 	loading: boolean;
@@ -63,8 +62,6 @@ const FileUploadSection: React.FC<Props> = ({
 }) => {
 	const { user } = useAuth();
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const [showConfetti] = useState(false);
-
 	const [textSubmissionsCount, setTextSubmissionsCount] = useState(
 		() => resetCountsIfNewDay().text
 	);
@@ -325,7 +322,7 @@ const FileUploadSection: React.FC<Props> = ({
 			)}
 
 			{/* Check Button & Word Counter */}
-			<div className="mt-4 flex justify-between items-center">
+			<div className="mt-4 flex justify-between items-center overflow-hidden">
 				<span
 					className={`text-sm ${
 						wordCount > MAX_WORDS ? "text-red-600 font-bold" : "text-gray-700"
@@ -380,8 +377,6 @@ const FileUploadSection: React.FC<Props> = ({
 					<p>Please log in for unlimited access.</p>
 				</div>
 			)}
-
-			<ConfettiEffect active={showConfetti} />
 		</section>
 	);
 };

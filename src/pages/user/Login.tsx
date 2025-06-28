@@ -19,19 +19,18 @@ const LoginPage: React.FC = () => {
 	const [error, setError] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 
-	// Forgot password modal state & steps
+	//  Forgot Password state (commented out)
+	/*
 	const [forgotOpen, setForgotOpen] = useState(false);
 	const [forgotEmail, setForgotEmail] = useState("");
 	const [otp, setOtp] = useState("");
 	const [newPassword, setNewPassword] = useState("");
-	const [forgotStep, setForgotStep] = useState<"request" | "confirm">(
-		"request"
-	);
+	const [forgotStep, setForgotStep] = useState<"request" | "confirm">("request");
 	const [forgotMessage, setForgotMessage] = useState("");
 	const [forgotError, setForgotError] = useState("");
 	const [loadingForgot, setLoadingForgot] = useState(false);
+	*/
 
-	// Login form submit
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError("");
@@ -61,79 +60,16 @@ const LoginPage: React.FC = () => {
 		}
 	};
 
-	// Forgot Password: request OTP
+	// Forgot Password handlers (commented out)
+	/*
 	const handleForgotRequest = async () => {
-		setForgotError("");
-		setForgotMessage("");
-		if (!forgotEmail) {
-			setForgotError("Please enter your email.");
-			return;
-		}
-		setLoadingForgot(true);
-
-		try {
-			const res = await fetch("http://localhost:8000/password-reset/request", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email: forgotEmail }),
-			});
-
-			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.detail || "Failed to send reset code.");
-			}
-
-			setForgotMessage("If that email exists, a reset code has been sent.");
-			setForgotStep("confirm");
-		} catch (err: any) {
-			setForgotError(err.message);
-		} finally {
-			setLoadingForgot(false);
-		}
+		...
 	};
 
-	// Forgot Password: confirm OTP + new password
 	const handleForgotConfirm = async () => {
-		setForgotError("");
-		setForgotMessage("");
-		if (!otp || !newPassword) {
-			setForgotError("Please enter the code and your new password.");
-			return;
-		}
-		setLoadingForgot(true);
-
-		try {
-			const res = await fetch("http://localhost:8000/password-reset/confirm", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					email: forgotEmail,
-					otp_code: otp,
-					new_password: newPassword,
-				}),
-			});
-
-			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.detail || "Failed to reset password.");
-			}
-
-			setForgotMessage("Password reset successfully! You can now log in.");
-			setTimeout(() => {
-				setForgotOpen(false);
-				setForgotStep("request");
-				setForgotEmail("");
-				setOtp("");
-				setNewPassword("");
-				setForgotMessage("");
-				setForgotError("");
-			}, 3000);
-		} catch (err: any) {
-			setForgotError(err.message);
-		} finally {
-			setLoadingForgot(false);
-		}
+		...
 	};
+	*/
 
 	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const { name, value, type, checked } = e.target;
@@ -218,6 +154,9 @@ const LoginPage: React.FC = () => {
 								/>
 								Remember Me
 							</label>
+
+							{/* Forgot Password link removed for now */}
+							{/*
 							<button
 								type="button"
 								className="text-sm text-blue-600 hover:underline"
@@ -225,6 +164,7 @@ const LoginPage: React.FC = () => {
 							>
 								Forgot Password?
 							</button>
+							*/}
 						</div>
 					</div>
 
@@ -251,101 +191,16 @@ const LoginPage: React.FC = () => {
 				</div>
 			</motion.div>
 
-			{/* Forgot Password Modal */}
+			{/* Forgot Password Modal removed for now */}
+			{/*
 			{forgotOpen && (
 				<div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-20 p-4">
 					<div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
-						<button
-							className="absolute top-3 right-3 text-gray-600 hover:text-gray-800"
-							onClick={() => {
-								setForgotOpen(false);
-								setForgotStep("request");
-								setForgotEmail("");
-								setOtp("");
-								setNewPassword("");
-								setForgotMessage("");
-								setForgotError("");
-							}}
-						>
-							✕
-						</button>
-						<h2 className="text-xl font-semibold mb-4 text-center">
-							Forgot Password
-						</h2>
-
-						{forgotStep === "request" && (
-							<>
-								<label className="block mb-2 text-gray-700 font-medium">
-									Enter your registered email:
-								</label>
-								<input
-									type="email"
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
-									value={forgotEmail}
-									onChange={(e) => setForgotEmail(e.target.value)}
-									placeholder="you@example.com"
-									required
-								/>
-								{forgotError && (
-									<p className="text-red-600 mb-2">{forgotError}</p>
-								)}
-								{forgotMessage && (
-									<p className="text-green-600 mb-2">{forgotMessage}</p>
-								)}
-								<button
-									className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold"
-									onClick={handleForgotRequest}
-									disabled={loadingForgot}
-								>
-									{loadingForgot ? "Sending..." : "Send Reset Code"}
-								</button>
-							</>
-						)}
-
-						{forgotStep === "confirm" && (
-							<>
-								<label className="block mb-2 text-gray-700 font-medium">
-									Enter the code you received:
-								</label>
-								<input
-									type="text"
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
-									value={otp}
-									onChange={(e) => setOtp(e.target.value)}
-									placeholder="6-digit code"
-									maxLength={6}
-								/>
-
-								<label className="block mb-2 text-gray-700 font-medium">
-									Enter new password:
-								</label>
-								<input
-									type="password"
-									className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
-									value={newPassword}
-									onChange={(e) => setNewPassword(e.target.value)}
-									placeholder="New password"
-								/>
-
-								{forgotError && (
-									<p className="text-red-600 mb-2">{forgotError}</p>
-								)}
-								{forgotMessage && (
-									<p className="text-green-600 mb-2">{forgotMessage}</p>
-								)}
-
-								<button
-									className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-semibold"
-									onClick={handleForgotConfirm}
-									disabled={loadingForgot}
-								>
-									{loadingForgot ? "Resetting..." : "Reset Password"}
-								</button>
-							</>
-						)}
+						...
 					</div>
 				</div>
 			)}
+			*/}
 		</div>
 	);
 };
