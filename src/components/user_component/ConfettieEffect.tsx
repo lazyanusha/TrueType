@@ -23,7 +23,7 @@ const ConfettiEffect: React.FC<ConfettiEffectProps> = ({
 			height={height}
 			numberOfPieces={pieces}
 			recycle={true}
-			className={className} // keep confetti going while active
+			className={className} 
 		/>
 	);
 };

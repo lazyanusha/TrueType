@@ -17,7 +17,6 @@ interface Props {
 const supportedExtensions = [".txt", ".pdf", ".docx"];
 const MAX_TEXT_SUBMISSIONS = 5;
 const MAX_FILE_UPLOADS = 5;
-const MAX_UPLOADS = MAX_TEXT_SUBMISSIONS + MAX_FILE_UPLOADS;
 const MAX_WORDS = 1000;
 
 const isSupportedFile = (fileName: string) =>
@@ -77,6 +76,7 @@ const FileUploadSection: React.FC<Props> = ({
 
 	useEffect(() => {
 		if (user) {
+			// clear guest counts on login
 			localStorage.removeItem("textSubmissionsCount");
 			localStorage.removeItem("fileUploadsCount");
 			localStorage.removeItem("guest_last_reset_date");
@@ -86,20 +86,28 @@ const FileUploadSection: React.FC<Props> = ({
 	}, [user]);
 
 	const hasEnoughSentences = countSentences(text) >= 10;
-	const nonUserLimitReached =
-		!user &&
-		(textSubmissionsCount >= MAX_TEXT_SUBMISSIONS ||
-			fileUploadsCount >= MAX_FILE_UPLOADS);
 	const supportedFiles = files.filter((file) => isSupportedFile(file.name));
-	const showInputSections = !nonUserLimitReached;
+
+	// Separate limit flags
+	const textLimitReached =
+		!user && textSubmissionsCount >= MAX_TEXT_SUBMISSIONS;
+	const fileLimitReached = !user && fileUploadsCount >= MAX_FILE_UPLOADS;
+
+	// Disable file upload if loading or file limit reached or text is entered
+	const disableFileUpload =
+		loading || fileLimitReached || text.trim().length > 0;
+
+	// Disable text area if loading or text limit reached or files uploaded
+	const disableTextArea =
+		loading || textLimitReached || supportedFiles.length > 0;
 
 	const handleFileUploadClick = () => {
-		if (loading || nonUserLimitReached) {
-			alert("Upload limit reached. Please log in for unlimited access.");
-			return;
-		}
-		if (text.trim()) {
-			alert("You can only use either text input or file upload at a time.");
+		if (disableFileUpload) {
+			alert(
+				fileLimitReached
+					? `File upload limit (${MAX_FILE_UPLOADS}) reached. Please log in for unlimited access.`
+					: "You can only use either text input or file upload at a time."
+			);
 			return;
 		}
 		fileInputRef.current?.click();
@@ -128,7 +136,7 @@ const FileUploadSection: React.FC<Props> = ({
 		}
 
 		if (!user) {
-			if (fileUploadsCount >= MAX_FILE_UPLOADS) {
+			if (fileUploadsCount + selectedFiles.length >= MAX_FILE_UPLOADS) {
 				alert(
 					`Daily upload limit reached (${MAX_FILE_UPLOADS} files). Please log in for unlimited uploads.`
 				);
@@ -203,6 +211,13 @@ const FileUploadSection: React.FC<Props> = ({
 			return;
 		}
 
+		if (textLimitReached) {
+			alert(
+				`Daily text submission limit (${MAX_TEXT_SUBMISSIONS}) reached. Please log in for unlimited access.`
+			);
+			return;
+		}
+
 		handleTextChange(e);
 	};
 
@@ -212,17 +227,17 @@ const FileUploadSection: React.FC<Props> = ({
 				alert("You've exceeded the 1000-word limit.");
 				return;
 			}
-			if (textSubmissionsCount >= MAX_TEXT_SUBMISSIONS) {
+			if (textLimitReached) {
 				alert("Daily guest text submission limit reached.");
 				return;
 			}
-			if (fileUploadsCount >= MAX_FILE_UPLOADS) {
+			if (fileLimitReached) {
 				alert("Daily guest upload limit reached.");
 				return;
 			}
 		}
 
-		if (!hasEnoughSentences && text.trim() && !supportedFiles.length) {
+		if (!hasEnoughSentences && text.trim() && supportedFiles.length === 0) {
 			alert("Please enter at least 10 meaningful sentences.");
 			return;
 		}
@@ -240,12 +255,15 @@ const FileUploadSection: React.FC<Props> = ({
 		await handleCheckPlagiarism();
 	};
 
+	const wordColorClass =
+		!user && wordCount > MAX_WORDS ? "text-red-600 font-bold" : "text-gray-700";
+
 	return (
 		<section className="bg-white rounded-xl p-8 shadow-xl mb-12 text-gray-900 relative">
 			{/* Upload Box */}
 			<div
 				className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer ${
-					loading || nonUserLimitReached
+					disableFileUpload
 						? "opacity-50 cursor-not-allowed border-gray-300"
 						: "hover:border-blue-500 border-gray-300"
 				}`}
@@ -253,7 +271,8 @@ const FileUploadSection: React.FC<Props> = ({
 			>
 				<p className="text-lg font-semibold">Click to upload files</p>
 				<p className="text-sm text-gray-600 mt-1">
-					Supports .txt, .pdf, .docx (max 5 files/day for guests)
+					Supports .txt, .pdf, .docx (max {MAX_FILE_UPLOADS} files/day for
+					guests)
 				</p>
 				<input
 					ref={fileInputRef}
@@ -261,20 +280,20 @@ const FileUploadSection: React.FC<Props> = ({
 					multiple
 					className="hidden"
 					onChange={onFileChange}
-					disabled={loading || !!text.trim() || nonUserLimitReached}
+					disabled={disableFileUpload}
 					accept={supportedExtensions.join(",")}
 				/>
 			</div>
 
 			{/* Text Area */}
-			{showInputSections && (
+			{!textLimitReached && (
 				<div className="relative mt-6">
 					<textarea
 						className="w-full h-48 border border-gray-300 rounded-lg p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
 						placeholder="Paste your text here to check for plagiarism..."
 						value={text}
 						onChange={onTextChange}
-						disabled={loading || supportedFiles.length > 0}
+						disabled={disableTextArea}
 					/>
 					{text && (
 						<button
@@ -323,21 +342,15 @@ const FileUploadSection: React.FC<Props> = ({
 
 			{/* Check Button & Word Counter */}
 			<div className="mt-4 flex justify-between items-center overflow-hidden">
-				<span
-					className={`text-sm ${
-						wordCount > MAX_WORDS ? "text-red-600 font-bold" : "text-gray-700"
-					}`}
-				>
+				<span className={`text-sm ${wordColorClass}`}>
 					Words: {wordCount} / {MAX_WORDS}
 				</span>
 				<button
 					onClick={onCheckClick}
 					disabled={
 						loading ||
-						nonUserLimitReached ||
-						(!hasEnoughSentences &&
-							text.trim().length > 0 &&
-							supportedFiles.length === 0)
+						(textLimitReached && supportedFiles.length === 0) ||
+						(fileLimitReached && text.trim() === "")
 					}
 					className="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-blue-700 transition duration-200 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
 				>
@@ -371,8 +384,9 @@ const FileUploadSection: React.FC<Props> = ({
 			{!user && (
 				<div className="mt-4 text-xs text-red-500">
 					<p>
-						Guest limits: Up to {MAX_UPLOADS} submissions per day (text or
-						files). Max 1000 words per submission.
+						Guest limits: Up to {MAX_TEXT_SUBMISSIONS} text submissions and{" "}
+						{MAX_FILE_UPLOADS} file uploads per day. Max 1000 words per
+						submission.
 					</p>
 					<p>Please log in for unlimited access.</p>
 				</div>

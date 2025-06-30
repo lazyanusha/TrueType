@@ -24,7 +24,6 @@ export default function EditResourceModal({ resourceId, onClose, onSuccess }: Pr
   const [content, setContent] = useState("");
   const [publisher, setPublisher] = useState("");
   const [publicationDate, setPublicationDate] = useState("");
-  const [Doc_Type, setDoc_type] = useState("Book");
   const [fileUrl, setFileUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [authors, setAuthors] = useState<Author[]>([]);
@@ -40,7 +39,6 @@ export default function EditResourceModal({ resourceId, onClose, onSuccess }: Pr
         setContent(data.content || "");
         setPublisher(data.publisher || "");
         setPublicationDate(data.publication_date || "");
-        setDoc_type(data.Doc_Type || "Book");
         setFileUrl(data.file_url || "");
 
         // Properly parse and fallback
@@ -91,7 +89,6 @@ export default function EditResourceModal({ resourceId, onClose, onSuccess }: Pr
     formData.append("content", content);
     formData.append("publisher", publisher);
     formData.append("publication_date", publicationDate);
-    formData.append("Doc_Type", Doc_Type);
     formData.append("file_url", fileUrl);
     formData.append("authors", JSON.stringify(authors));
 
@@ -171,18 +168,6 @@ export default function EditResourceModal({ resourceId, onClose, onSuccess }: Pr
             value={publicationDate}
             onChange={(e) => setPublicationDate(e.target.value)}
           />
-
-          <select
-            className="w-full border-b border-gray-300 outline-none py-1"
-            value={Doc_Type}
-            onChange={(e) => setDoc_type(e.target.value)}
-          >
-            <option>Book</option>
-            <option>Article</option>
-            <option>Thesis</option>
-            <option>Report</option>
-            <option>Other</option>
-          </select>
 
           <div>
             <label className="block font-semibold mb-1">Authors</label>

@@ -9,6 +9,8 @@ interface Props {
 	elapsedTime: number;
 }
 
+const MAX_FILE_UPLOADS = 5;
+
 const FileUploadHandle = ({
 	onCheck,
 	onShowResults,
@@ -29,10 +31,24 @@ const FileUploadHandle = ({
 		if (!e.target.files) return;
 
 		const selectedFiles = Array.from(e.target.files);
+
+		const allowedCount = MAX_FILE_UPLOADS - files.length;
+
+		if (allowedCount <= 0) {
+			alert(
+				`You have reached the max file upload limit of ${MAX_FILE_UPLOADS} files.`
+			);
+			e.target.value = "";
+			return;
+		}
+
+		// Only take up to allowedCount files from the selection
+		const filesToAdd = selectedFiles.slice(0, allowedCount);
+
 		const updatedFileTexts: Record<string, string> = {};
 		const validFiles: File[] = [];
 
-		for (const file of selectedFiles) {
+		for (const file of filesToAdd) {
 			try {
 				const text = await extractTextFromFile(file);
 				updatedFileTexts[file.name] = text;
@@ -45,6 +61,9 @@ const FileUploadHandle = ({
 
 		setFiles((prev) => [...prev, ...validFiles]);
 		setFileTexts((prev) => ({ ...prev, ...updatedFileTexts }));
+
+		// Clear input so same files can be re-uploaded if needed
+		e.target.value = "";
 	};
 
 	const handleTextChange = (e: ChangeEvent<HTMLTextAreaElement>) => {

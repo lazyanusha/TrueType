@@ -1,19 +1,19 @@
 import { useState, useRef, useEffect, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { resultTypes } from "../../components/publilc/types/resultTypes";
-import { citationInfo } from "../../components/publilc/constants/citationInfo";
-import ConfettiEffect from "../../components/user_component/ConfettieEffect";
+import type { resultTypes } from "../../components/public/types/resultTypes";
+import { citationInfo } from "../../components/public/constants/citationInfo";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../auth/auth_context";
 import { confirmAlert } from "react-confirm-alert";
 import "react-confirm-alert/src/react-confirm-alert.css";
 import FeaturesSection from "../../components/user_component/FeaturesSection";
 import ResultSummary from "../../components/user_component/ResultSummary";
-import { handleDownloadPDF } from "../../components/publilc/handler/HandleDownloadPdf";
+import { handleDownloadPDF } from "../../components/public/handler/HandleDownloadPdf";
 import { getCitationStyles } from "../../utils/getCitationStyles";
 import PlagiarismChecker from "../../components/user_component/PlagiarismChecker";
 import { checkPlagiarism } from "../../utils/PlagiarismService";
 import { saveReportToDB } from "../../utils/reportsave";
+import ConfettiEffect from "../../components/user_component/ConfettieEffect";
 
 const MAX_LOADING_TIME = 60;
 
@@ -61,6 +61,17 @@ const Home = () => {
 		}
 	}, [authLoading, user, navigate, logout]);
 
+	const prevUserRef = useRef(user);
+
+	useEffect(() => {
+		if (prevUserRef.current && !user) {
+			// User was logged in before, now logged out
+			setResultData(null);
+			setShowResults(false);
+		}
+		prevUserRef.current = user;
+	}, [user]);
+
 	useEffect(() => {
 		if (loading) {
 			loadingStartTimeRef.current = Date.now();
@@ -88,7 +99,6 @@ const Home = () => {
 		};
 	}, [loading]);
 
-	// Animate pie chart on result
 	useEffect(() => {
 		if (showResults && resultData) {
 			let progress = 0;
@@ -115,7 +125,6 @@ const Home = () => {
 		}
 	}, [showResults, resultData]);
 
-	// Scroll to result section
 	useEffect(() => {
 		if (showResults && resultRef.current) {
 			const element = resultRef.current;
@@ -127,19 +136,22 @@ const Home = () => {
 		}
 	}, [showResults]);
 
-	// Handle plagiarism check
 	const handleCheck = async (file: File) => {
+		// Reset previous result
+		setShowResults(false);
+		setResultData(null);
+		setAnimatedPercentage(0);
+		setElapsedTime(0);
 		setLoading(true);
+
 		const start = Date.now();
 
 		try {
-			// ⏱ Elapsed time tracking
 			const resultData: resultTypes = await checkPlagiarism(file);
 			const end = Date.now();
 			const elapsed = Math.round((end - start) / 1000);
 			setElapsedTime(elapsed);
 
-			// Save result in DB if logged in
 			const token =
 				localStorage.getItem("access_token") ||
 				sessionStorage.getItem("access_token");
@@ -157,7 +169,6 @@ const Home = () => {
 				}
 			}
 
-			// Update results
 			setResultData(resultData);
 			setShowResults(true);
 		} catch (err: any) {
@@ -182,11 +193,12 @@ const Home = () => {
 		setShowResults(true);
 	};
 
-	const pageBackgroundStyle = {
+	const pageBackgroundStyle: React.CSSProperties = {
 		backgroundColor: "#f0f9ff",
 		minHeight: "100vh",
 		paddingTop: "3rem",
 		paddingBottom: "3rem",
+		overflowX: "hidden",
 	};
 
 	if (authLoading) {
@@ -205,10 +217,7 @@ const Home = () => {
 				transition={{ duration: 1 }}
 				className="max-w-7xl mx-auto relative z-10"
 			>
-				<div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto ">
-					{/* Show confetti  and results visible */}
-					<ConfettiEffect active={!loading && showResults} className = "overflow-hidden" />
-
+				<div className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
 					<header className="mb-12 mt-10 text-center">
 						<h1 className="text-4xl font-extrabold mb-4 text-blue-900">
 							TrueType – Originality You Can Trust
@@ -219,7 +228,6 @@ const Home = () => {
 						</p>
 					</header>
 
-					{/* Input Section */}
 					<PlagiarismChecker
 						onCheck={handleCheck}
 						onResult={handleResult}
@@ -228,20 +236,45 @@ const Home = () => {
 						elapsedTime={elapsedTime}
 					/>
 
+					{/* Confetti + Spinner while checking */}
+					{loading && !showResults && (
+						<>
+							<ConfettiEffect
+								active={true}
+								className="absolute top-0 left-0 w-full h-full pointer-events-none z-40"
+							/>
+							<div className="fixed inset-0 flex items-center justify-center z-50 bg-white/80">
+								<div className="flex flex-col items-center space-y-4">
+									<div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-opacity-50"></div>
+									<p className="text-lg font-semibold text-blue-700">
+										Checking for plagiarism...
+									</p>
+								</div>
+							</div>
+						</>
+					)}
+
 					{/* Result Section */}
 					<AnimatePresence>
-						{resultData && (
-							<ResultSummary
-								resultData={resultData}
-								animatedPercentage={animatedPercentage}
-								elapsedTime={elapsedTime}
-								showResults={showResults}
-								resultRef={resultRef}
-								handleDownloadPDF={handleDownloadPDF}
-								citationInfo={citationInfo}
-								getPathColor={getPathColor}
-								getCitationStyles={getCitationStyles}
-							/>
+						{showResults && resultData && (
+							<motion.div
+								initial={{ opacity: 0, y: 30 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: 20 }}
+								transition={{ duration: 0.5 }}
+							>
+								<ResultSummary
+									resultData={resultData}
+									animatedPercentage={animatedPercentage}
+									elapsedTime={elapsedTime}
+									showResults={showResults}
+									resultRef={resultRef}
+									handleDownloadPDF={handleDownloadPDF}
+									citationInfo={citationInfo}
+									getPathColor={getPathColor}
+									getCitationStyles={getCitationStyles}
+								/>
+							</motion.div>
 						)}
 					</AnimatePresence>
 

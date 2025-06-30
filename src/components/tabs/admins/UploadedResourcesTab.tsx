@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import { useResourceApi } from "../../../api_helper/resources";
 import { useAuth } from "../../../utils/useAuth";
 import { Trash2 } from "lucide-react";
-// import EditResourceModal from "../../admin_components/useruploadmodal";
+
+type Author = {
+	name: string;
+};
 
 type Resource = {
 	id: number;
@@ -12,7 +15,6 @@ type Resource = {
 	file_url: string;
 	publisher: string;
 	publication_date: string;
-	doc_type: string;
 	created_at: string;
 	updated_at: string;
 	content: string;
@@ -22,9 +24,6 @@ export default function UploadedResourcesTable() {
 	const { user } = useAuth();
 	const [resources, setResources] = useState<Resource[]>([]);
 	const { fetchResources, deleteResource } = useResourceApi();
-	// const [editingResourceId, setEditingResourceId] = useState<number | null>(
-	//   null
-	// );
 
 	const [currentPage, setCurrentPage] = useState(1);
 	const itemsPerPage = 10;
@@ -44,7 +43,7 @@ export default function UploadedResourcesTable() {
 			}
 		};
 		fetchData();
-	}, []);
+	}, [fetchResources]); // safe now because fetchResources is memoized
 
 	useEffect(() => {
 		if (message && /success/i.test(message)) {
@@ -54,8 +53,6 @@ export default function UploadedResourcesTable() {
 		}
 	}, [message]);
 
-	// Removed startEdit, cancelEdit, handleChange, saveEdit functions
-
 	const handleDelete = async (id: number) => {
 		const confirmDelete = window.confirm(
 			"Are you sure you want to delete this resource?"
@@ -64,8 +61,7 @@ export default function UploadedResourcesTable() {
 
 		try {
 			await deleteResource(id);
-			const updated = await fetchResources();
-			setResources(updated);
+			setResources((prev) => prev.filter((res) => res.id !== id));
 			setMessage("Resource deleted successfully.");
 		} catch {
 			setMessage("Failed to delete resource.");

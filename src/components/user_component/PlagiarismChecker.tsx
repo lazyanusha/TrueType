@@ -1,5 +1,5 @@
-import type { resultTypes } from "../publilc/types/resultTypes";
-import FileUploadHandle from "../publilc/handler/FileUpholadHandle";
+import type { resultTypes } from "../public/types/resultTypes";
+import FileUploadHandle from "../public/handler/FileUpholadHandle";
 
 const PlagiarismChecker = ({
 	onCheck,

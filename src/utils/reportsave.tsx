@@ -1,4 +1,4 @@
-import type { resultTypes } from "../components/publilc/types/resultTypes";
+import type { resultTypes } from "../components/public/types/resultTypes";
 
 function countWords(text: string): number {
 	if (!text) return 0;

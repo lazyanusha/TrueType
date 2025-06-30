@@ -1,9 +1,10 @@
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import type { MatchedPair, resultTypes } from "../publilc/types/resultTypes";
-import type { citationInfo } from "../publilc/constants/citationInfo";
+
 import { normalizeCitationStatus } from "../../utils/CitationUtils";
+import type { MatchedPair, resultTypes } from "../public/types/resultTypes";
+import type { citationInfo } from "../public/constants/citationInfo";
 
 interface Props {
 	resultData: resultTypes;
@@ -13,7 +14,18 @@ interface Props {
 	resultRef: React.RefObject<HTMLDivElement | null>;
 	handleDownloadPDF: (
 		id: string,
-		options: { title: string; timestamp: string; duration: string }
+		options: {
+			title: string;
+			timestamp: string;
+			duration: string | null;
+			exactScore: number;
+			partialScore: number;
+			uniqueScore: number;
+			wordCount: number;
+			charCount: number;
+			matchedSources: string[];
+			logoUrl?: string;
+		}
 	) => void;
 	citationInfo: Record<string, { label: string; description: string }>;
 	getPathColor: (percentage: number) => string;
@@ -131,6 +143,13 @@ const ResultSummary: React.FC<Props> = ({
 									title: "Plagiarism Scan Report",
 									timestamp: new Date().toLocaleString(),
 									duration: `${elapsedTime} seconds`,
+									exactScore: total_exact_score,
+									partialScore: total_partial_score,
+									uniqueScore: unique_score,
+									wordCount,
+									charCount: characterCount,
+									matchedSources: Object.keys(groupedBySource),
+									logoUrl: "/logo.png",
 								})
 							}
 							aria-label="Download report PDF"
@@ -276,10 +295,10 @@ const ResultSummary: React.FC<Props> = ({
 					</div>
 
 					{/* Matched sources grouped by file */}
-					<div className="flex-1">
-						<div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow">
+					<div className="flex-1 min-w-0">
+						<div className="bg-white rounded-lg border border-gray-200 shadow">
 							<div className="bg-gray-50 px-4 py-3 border-b">
-								<h3 className="font-semibold text-gray-800">
+								<h3 className="font-semibold text-gray-800 break-words leading-snug">
 									Matched Sources ({Object.keys(groupedBySource).length})
 								</h3>
 							</div>
@@ -292,7 +311,7 @@ const ResultSummary: React.FC<Props> = ({
 													key={i}
 													className="border border-gray-200 rounded-lg p-3 bg-white hover:shadow-md transition-shadow"
 												>
-													<h4 className="font-medium text-blue-600 truncate mb-2">
+													<h4 className="font-medium text-blue-600 truncate break-words break-all  mb-2">
 														{sourceFile}
 													</h4>
 													<ul className="space-y-2">

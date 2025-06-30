@@ -15,10 +15,15 @@ type OutletContextType = {
 
 const Notifications = () => {
 	const [notifications, setNotifications] = useState<Notification[]>([]);
-	const { refetchUnreadCount } = useOutletContext<OutletContextType>();
+
+	// Use Partial<> and fallback to {} to avoid crash when context is undefined
+	const { refetchUnreadCount } =
+		useOutletContext<Partial<OutletContextType>>() || {};
 
 	const fetchNotifications = async () => {
-		const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+		const token =
+			localStorage.getItem("access_token") ||
+			sessionStorage.getItem("access_token");
 		if (!token) return;
 
 		try {
@@ -43,7 +48,9 @@ const Notifications = () => {
 	}, []);
 
 	const markAsRead = async (id: number) => {
-		const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+		const token =
+			localStorage.getItem("access_token") ||
+			sessionStorage.getItem("access_token");
 		if (!token) return;
 
 		try {
@@ -60,7 +67,7 @@ const Notifications = () => {
 				setNotifications((prev) =>
 					prev.map((note) => (note.id === id ? { ...note, read: true } : note))
 				);
-				refetchUnreadCount(); // ✅ update red dot
+				refetchUnreadCount?.(); // Optional call — only if function exists
 			}
 		} catch (err) {
 			console.error("Error marking notification as read", err);
