@@ -25,3 +25,8 @@
 h1 {
   color: #3C5773;
 }
+
+
+* {
+  overflow-x: hidden;
+}
