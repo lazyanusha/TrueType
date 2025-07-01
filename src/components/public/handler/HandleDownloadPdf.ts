@@ -4,17 +4,17 @@ import html2canvas from "html2canvas-pro";
 export async function handleDownloadPDF(
 	sectionId: string,
 	options: {
-		title?: string;
-		timestamp?: string;
-		duration?: string;
-		exactScore?: number;
-		partialScore?: number;
-		uniqueScore?: number;
-		wordCount?: number;
-		charCount?: number;
-		matchedSources?: string[];
+		title: string;
+		timestamp: string;
+		duration: string | null;
+		exactScore: number;
+		partialScore: number;
+		uniqueScore: number;
+		wordCount: number;
+		charCount: number;
+		matchedSources: string[];
 		logoUrl?: string;
-	} = {}
+	}
 ): Promise<void> {
 	console.log("PDF download started");
 

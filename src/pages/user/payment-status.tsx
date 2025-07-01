@@ -63,6 +63,13 @@ export default function PaymentStatus() {
 			});
 
 			if (!res.ok) {
+				if (retryCount < 1) {
+					// Retry after 2 seconds if first attempt fails
+					setTimeout(() => {
+						setRetryCount((prev) => prev + 1);
+					}, 2000);
+					return;
+				}
 				const errorText = await res.text();
 				throw new Error(errorText || "Payment verification failed");
 			}
@@ -88,13 +95,21 @@ export default function PaymentStatus() {
 				setMessage("❌ Payment incomplete or could not be verified.");
 			}
 		} catch (err) {
-			setStatus("failed");
-			setMessage("⚠️ Payment verification failed. Please try again.");
+			if (retryCount < 1) {
+				setTimeout(() => {
+					setRetryCount((prev) => prev + 1);
+				}, 2000);
+			} else {
+				setStatus("failed");
+				setMessage("⚠️ Payment verification failed. Please try again.");
+			}
 		}
 	};
 
 	useEffect(() => {
-		verifyPayment();
+		if (pidx && transaction_id) {
+			verifyPayment();
+		}
 	}, [retryCount]);
 
 	function formatDate(dateStr: string) {
