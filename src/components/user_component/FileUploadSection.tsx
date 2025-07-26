@@ -270,10 +270,7 @@ const FileUploadSection: React.FC<Props> = ({
 				onClick={handleFileUploadClick}
 			>
 				<p className="text-lg font-semibold">Click to upload files</p>
-				<p className="text-sm text-gray-600 mt-1">
-					Supports .txt, .pdf, .docx (max {MAX_FILE_UPLOADS} files/day for
-					guests)
-				</p>
+				<p className="text-sm text-gray-600 mt-1">Supports .txt, .pdf, .docx</p>
 				<input
 					ref={fileInputRef}
 					type="file"
@@ -384,9 +381,8 @@ const FileUploadSection: React.FC<Props> = ({
 			{!user && (
 				<div className="mt-4 text-xs text-red-500">
 					<p>
-						Guest limits: Up to {MAX_TEXT_SUBMISSIONS} text submissions and{" "}
-						{MAX_FILE_UPLOADS} file uploads per day. Max 1000 words per
-						submission.
+						Guest limits: Up to 5 submissions including both text submissions
+						and file uploads per day. Max 1000 words per submission.
 					</p>
 					<p>Please log in for unlimited access.</p>
 				</div>

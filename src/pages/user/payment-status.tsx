@@ -64,7 +64,6 @@ export default function PaymentStatus() {
 
 			if (!res.ok) {
 				if (retryCount < 1) {
-					// Retry after 2 seconds if first attempt fails
 					setTimeout(() => {
 						setRetryCount((prev) => prev + 1);
 					}, 2000);

@@ -32,7 +32,7 @@ const AccountTab = ({ userData, setUserData, userId }: AccountTabProps) => {
         return "";
       case "phone":
         if (!value.trim()) return "Phone is required";
-        // Example: only digits and + allowed
+        // only digits and + allowed
         if (!/^[\d+\s-]{7,15}$/.test(value))
           return "Invalid phone number format";
         return "";
@@ -113,7 +113,7 @@ const AccountTab = ({ userData, setUserData, userId }: AccountTabProps) => {
 
       alert("Profile updated successfully");
       setUserData((prev) => ({ ...prev, password: "" })); // clear password after save
-      setEditMode(false); // exit edit mode on success
+      setEditMode(false); 
     } catch (error) {
       console.error(error);
       alert("Error updating user");

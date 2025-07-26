@@ -16,7 +16,6 @@ type OutletContextType = {
 const Notifications = () => {
 	const [notifications, setNotifications] = useState<Notification[]>([]);
 
-	// Use Partial<> and fallback to {} to avoid crash when context is undefined
 	const { refetchUnreadCount } =
 		useOutletContext<Partial<OutletContextType>>() || {};
 
@@ -67,7 +66,7 @@ const Notifications = () => {
 				setNotifications((prev) =>
 					prev.map((note) => (note.id === id ? { ...note, read: true } : note))
 				);
-				refetchUnreadCount?.(); // Optional call — only if function exists
+				refetchUnreadCount?.();
 			}
 		} catch (err) {
 			console.error("Error marking notification as read", err);

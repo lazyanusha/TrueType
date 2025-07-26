@@ -205,19 +205,25 @@ const ResultSummary: React.FC<Props> = ({
 						<div className="bg-red-50 p-3 rounded-lg">
 							<p className="text-sm text-red-700">Exact Match</p>
 							<p className="text-2xl font-bold text-red-600">
-								{total_exact_score}%
+								{total_exact_score
+									? Number(total_exact_score).toFixed(2)
+									: "0.00"}
+								%
 							</p>
 						</div>
 						<div className="bg-yellow-50 p-3 rounded-lg">
 							<p className="text-sm text-yellow-700">Partial Match</p>
 							<p className="text-2xl font-bold text-yellow-600">
-								{total_partial_score}%
+								{total_partial_score
+									? Number(total_partial_score).toFixed(2)
+									: "0.00"}
+								%
 							</p>
 						</div>
 						<div className="bg-green-50 p-3 rounded-lg">
 							<p className="text-sm text-green-700">Unique</p>
 							<p className="text-2xl font-bold text-green-600">
-								{unique_score}%
+								{unique_score ? Number(unique_score).toFixed(2) : "0.00"}%
 							</p>
 						</div>
 					</div>

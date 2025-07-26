@@ -9,7 +9,7 @@ const RegistrationForm = lazy(() => import("./pages/user/Register"));
 const Features = lazy(() => import("./pages/user/Features"));
 const HowItWorks = lazy(() => import("./pages/user/HowItWorks"));
 
-// Lazy Protected User Pages
+// Protected User Pages
 const SubscriptionPage = lazy(() => import("./pages/user/Subscription"));
 const UserSettingsPage = lazy(() => import("./pages/user/UserSetting"));
 const PaymentStatus = lazy(() => import("./pages/user/payment-status"));
@@ -17,7 +17,7 @@ const NotificationTab = lazy(
 	() => import("./components/tabs/users/NotificationTab")
 );
 
-// Lazy Admin Pages
+// Admin Pages
 const Payments = lazy(() => import("./pages/admin/Payments"));
 const Users = lazy(() => import("./pages/admin/Users"));
 const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -30,10 +30,12 @@ const UserDetails = lazy(
 );
 
 // Shared Layout & Routes
-import Layout from "./components/public/Layout";
-import ProtectedRoute from "./components/public/protected_routes";
-import AdminRoute from "./components/public/admin_routes";
-import Spinner from "./components/spinner";
+const Layout = lazy(() => import("./components/public/Layout"));
+const ProtectedRoute = lazy(
+	() => import("./components/public/protected_routes")
+);
+const AdminRoute = lazy(() => import("./components/public/admin_routes"));
+const Spinner = lazy(() => import("./components/spinner"));
 
 function App() {
 	useEffect(() => {
@@ -53,7 +55,7 @@ function App() {
 						<Route path="how-it-works" element={<HowItWorks />} />
 						<Route path="contact" element={<Contact />} />
 
-						{/* Protected user routes */}
+						{/* Protected user routes */}	
 						<Route element={<ProtectedRoute />}>
 							<Route path="subscription" element={<SubscriptionPage />} />
 							<Route path="usersetting" element={<UserSettingsPage />} />

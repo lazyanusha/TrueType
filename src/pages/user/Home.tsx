@@ -137,7 +137,6 @@ const Home = () => {
 	}, [showResults]);
 
 	const handleCheck = async (file: File) => {
-		// Reset previous result
 		setShowResults(false);
 		setResultData(null);
 		setAnimatedPercentage(0);
@@ -245,8 +244,8 @@ const Home = () => {
 							/>
 							<div className="fixed inset-0 flex items-center justify-center z-50 bg-white/80">
 								<div className="flex flex-col items-center space-y-4">
-									<div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500 border-opacity-50"></div>
-									<p className="text-lg font-semibold text-blue-700">
+									<div className="animate-spin rounded-full h-12 w-12 border-t-4 border-red-500 border-opacity-50"></div>
+									<p className="text-lg font-semibold text-red-700">
 										Checking for plagiarism...
 									</p>
 								</div>
