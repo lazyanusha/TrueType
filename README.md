@@ -3,7 +3,7 @@
 Welcome to the **TrueType** Plagiarism Detection System. This repository contains the **frontend application** built with **React** and **Tailwind CSS**.
 
 > 🔍 TrueType helps users detect content similarity across multiple documents, assisting in academic integrity, content originality, and research writing.
-
+> The final branch contains the completed code .
 ---
 
 ## 📁 Project Structure
